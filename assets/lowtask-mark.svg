@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">lowtask mark</title>
+  <desc id="desc">A phosphor focus rail forming a lowercase l with a completion check inside a terminal frame.</desc>
+  <rect width="64" height="64" rx="8" fill="#050806"/>
+  <path d="M8 16V8h40m8 16V56H16" fill="none" stroke="#28613C" stroke-width="2"/>
+  <path d="M16 16v32h16" fill="none" stroke="#55F28C" stroke-width="8" stroke-linecap="square"/>
+  <path d="m32 40 8 8 16-24" fill="none" stroke="#93FFAD" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>

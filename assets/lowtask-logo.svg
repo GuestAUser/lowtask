@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 272 80" role="img" aria-labelledby="title desc">
+  <title id="title">lowtask</title>
+  <desc id="desc">The lowtask terminal task operator logo with a phosphor focus rail, completion check, and monospace wordmark.</desc>
+  <rect width="272" height="80" fill="#050806"/>
+  <g transform="translate(8 8)">
+    <path d="M8 16V8h40m8 16V56H16" fill="none" stroke="#28613C" stroke-width="2"/>
+    <path d="M16 16v32h16" fill="none" stroke="#55F28C" stroke-width="8" stroke-linecap="square"/>
+    <path d="m32 40 8 8 16-24" fill="none" stroke="#93FFAD" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <g fill="none" stroke="#E6F2E9" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M96 16v20h12M116 22h12v14h-12zM136 22v14h5v-8h5v8h5V22M162 16v20M156 22h12M176 22h12v14h-12v-8h12M208 22h-12v7h12v7h-12M216 16v20M230 22l-10 7 10 7"/>
+  </g>
+  <g fill="none" stroke="#9AAE9E" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M96 52h6M99 52v10M110 52h-6v10h6M104 57h5M112 62V52h6v5h-6M115 57l3 5M120 62V52l3 4 3-4v10M128 52h6M131 52v10M128 62h6M136 62V52l6 10V52M144 62V52h6v10M144 57h6M152 52v10h6M164 52h6M167 52v10M172 62V52h6v10M172 57h6M186 52h-6v5h6v5h-6M188 52v10M194 52l-6 5 6 5M200 52h6v10h-6zM208 62V52h6v5h-6M222 52h-6v10h6M216 57h5M224 62V52h6v5h-6M227 57l3 5M232 62V52h6v10M232 57h6M240 52h6M243 52v10M248 52h6v10h-6zM256 62V52h6v5h-6M259 57l3 5"/>
+  </g>
+</svg>
