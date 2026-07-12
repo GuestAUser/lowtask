@@ -66,7 +66,7 @@ static void compute_header_targets(size_t width, TuiLayout *layout) {
 static void compute_tabs(size_t width, size_t height, const TuiViewState *view, TuiLayout *layout) {
     if (height < 4U) return;
     layout->tabs = (TuiRect){.y = 1U, .width = width, .height = 1U};
-    const bool active_only = width < TUI_MINIMAL_COLUMNS || height <= 5U;
+    const bool active_only = width < TUI_MINIMAL_COLUMNS || height <= 7U;
     const size_t margin = width >= TUI_STANDARD_COLUMNS ? 4U :
                           (width >= TUI_NARROW_COLUMNS ? 1U : 0U);
     const size_t available = width > margin ? width - margin : 0U;

@@ -89,11 +89,8 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
     unsigned task_attributes = task->completed ? RENDER_ATTR_DIM | RENDER_ATTR_STRIKE :
                                                 RENDER_ATTR_NONE;
     if (app->drag_active && app->drag_task_id == task->id) task_attributes |= RENDER_ATTR_DIM;
-    if (view->effect == TUI_EFFECT_TAB) {
-        background_rgb = color_blend(background_rgb, tui_view_color(TUI_COLOR_RAISED),
-                                     (1.0F - animation_motion_progress(view->effect_progress)) *
-                                         0.16F);
-    } else if (app->effect_task_id == task->id && view->effect != TUI_EFFECT_NONE) {
+    if (app->effect_task_id == task->id && view->effect != TUI_EFFECT_NONE &&
+        view->effect != TUI_EFFECT_TAB) {
         const float progress = animation_motion_progress(view->effect_progress);
         if (view->effect == TUI_EFFECT_ADD) {
             background_rgb = color_blend(background_rgb, tui_view_color(TUI_COLOR_ACCENT),

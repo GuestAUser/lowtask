@@ -472,7 +472,7 @@ static void test_modal_cjk_cursor_and_meaningful_motion(void) {
     state.effect_elapsed = state.effect_duration;
     view.effect_progress = 1.0F;
     tui_draw(&renderer, &tasks, &view);
-    assert(screen_hash(&renderer) != tab_start);
+    assert(screen_hash(&renderer) == tab_start);
 
     malformed = view;
     malformed.mode = (TuiMode)99;
@@ -757,6 +757,17 @@ static void test_todo7_groups_pickers_and_help_overlay(void) {
     assert(screen_contains(&renderer, "+7 Days [3]"));
     assert(screen_contains(&renderer, "Custom [4]"));
     assert(screen_contains(&renderer, "Clear [5]"));
+
+    state.mode = APP_MODE_NORMAL;
+    view.mode = TUI_MODE_NORMAL;
+    for (size_t height = 5U; height <= 7U; ++height) {
+        TuiLayout short_layout;
+        assert(tui_layout_compute(64U, height, &view, &short_layout));
+        for (size_t tab = 0U; tab < APP_TAB_COUNT; ++tab) {
+            assert((short_layout.tab_targets[tab].width > 0U) ==
+                   (tab == (size_t)state.tab));
+        }
+    }
 
     state.mode = APP_MODE_HELP;
     state.help_scroll = 0U;

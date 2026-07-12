@@ -23,13 +23,7 @@ void tui_view_draw_tabs(Renderer *renderer, const TuiLayout *layout,
         const TuiColorToken background = pressed ? TUI_COLOR_PRESSED :
                                          (active ? TUI_COLOR_RAISED :
                                          (hovered ? TUI_COLOR_HOVER : TUI_COLOR_CANVAS));
-        const float tab_progress = active && view->effect == TUI_EFFECT_TAB ?
-                                   animation_motion_progress(view->effect_progress) : 1.0F;
-        uint32_t background_rgb = tui_view_color(background);
-        if (active && view->effect == TUI_EFFECT_TAB && !pressed) {
-            background_rgb = color_blend(tui_view_color(TUI_COLOR_CANVAS),
-                                         tui_view_color(TUI_COLOR_RAISED), tab_progress);
-        }
+        const uint32_t background_rgb = tui_view_color(background);
         renderer_fill(renderer, target.x, target.y, target.width, 1U, ' ',
                       (RendererStyle){
                           .foreground = tui_view_color(active ? TUI_COLOR_TEXT :
@@ -47,9 +41,10 @@ void tui_view_draw_tabs(Renderer *renderer, const TuiLayout *layout,
                            (view->ascii ? (emphasized ? ">" : (hovered ? "|" : " ")) :
                                           (emphasized ? "▌" : (hovered ? "│" : " ")));
         uint32_t rail_rgb = tui_view_color(pressed ? TUI_COLOR_ACCENT_STRONG :
-                                          (active || drag_valid ? TUI_COLOR_ACCENT :
-                                                                  TUI_COLOR_BORDER));
+                                           (active || drag_valid ? TUI_COLOR_ACCENT :
+                                                                   TUI_COLOR_BORDER));
         if (active && view->effect == TUI_EFFECT_TAB && !pressed) {
+            const float tab_progress = animation_motion_progress(view->effect_progress);
             rail_rgb = color_blend(tui_view_color(TUI_COLOR_BORDER),
                                    tui_view_color(TUI_COLOR_ACCENT), tab_progress);
         }
