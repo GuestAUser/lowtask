@@ -106,10 +106,42 @@ static void test_color_modes(void) {
     assert(strstr(output, "38;2;51;102;153") != NULL);
     assert(color_ansi(output, sizeof(output), 0x336699U, false, false) > 0);
     assert(strstr(output, "48;5;") != NULL);
-    assert(color_token_rgb(TUI_COLOR_URGENT) == 0xf15d9eU);
-    assert(color_token_xterm(TUI_COLOR_URGENT) == 205U);
     assert(color_ansi(output, sizeof(output), color_token_rgb(TUI_COLOR_URGENT), false, true) > 0);
     assert(strstr(output, "38;5;205") != NULL);
+}
+
+static void test_palette_tokens(void) {
+    /* Keep one exhaustive contract for the palette documented in DESIGN.md. */
+    static const struct {
+        uint32_t rgb;
+        unsigned xterm;
+    } expected[TUI_COLOR_COUNT] = {
+        [TUI_COLOR_CANVAS] = {0x010201U, 16U},
+        [TUI_COLOR_PANEL] = {0x030604U, 16U},
+        [TUI_COLOR_RAISED] = {0x040806U, 22U},
+        [TUI_COLOR_ROW_ALT] = {0x030704U, 16U},
+        [TUI_COLOR_HOVER] = {0x051109U, 22U},
+        [TUI_COLOR_SELECTED] = {0x06180eU, 23U},
+        [TUI_COLOR_PRESSED] = {0x041109U, 23U},
+        [TUI_COLOR_TEXT] = {0xdbe8deU, 231U},
+        [TUI_COLOR_TEXT_MUTED] = {0x839487U, 145U},
+        [TUI_COLOR_DATE] = {0xa7b8abU, 188U},
+        [TUI_COLOR_ACCENT] = {0x4ade80U, 121U},
+        [TUI_COLOR_ACCENT_STRONG] = {0x86efacU, 157U},
+        [TUI_COLOR_BORDER] = {0x1d4a2eU, 65U},
+        [TUI_COLOR_GRID] = {0x0d2617U, 23U},
+        [TUI_COLOR_URGENT] = {0xf15d9eU, 205U},
+        [TUI_COLOR_DANGER] = {0xf87171U, 210U},
+        [TUI_COLOR_WARNING] = {0xe7c55aU, 222U},
+        [TUI_COLOR_INFO] = {0x68aeefU, 117U},
+    };
+
+    for (TuiColorToken token = TUI_COLOR_CANVAS; token < TUI_COLOR_COUNT; ++token) {
+        assert(color_token_rgb(token) == expected[token].rgb);
+        assert(color_token_xterm(token) == expected[token].xterm);
+    }
+    assert(color_token_rgb((TuiColorToken)-1) == expected[TUI_COLOR_TEXT].rgb);
+    assert(color_token_xterm(TUI_COLOR_COUNT) == expected[TUI_COLOR_TEXT].xterm);
 }
 
 static void test_diff_renderer(void) {
@@ -201,6 +233,7 @@ int main(void) {
     test_input_decoder();
     test_animation();
     test_color_modes();
+    test_palette_tokens();
     test_diff_renderer();
     test_nonblocking_renderer_backpressure();
     puts("test_ui: PASS");

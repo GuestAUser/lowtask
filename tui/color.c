@@ -8,6 +8,7 @@ typedef struct {
     unsigned xterm;
 } ColorValue;
 
+/* Pair semantic RGB values with deliberate xterm fallbacks instead of cube approximations. */
 static const ColorValue palette[TUI_COLOR_COUNT] = {
     [TUI_COLOR_CANVAS] = {0x010201U, 16U},
     [TUI_COLOR_PANEL] = {0x030604U, 16U},
