@@ -114,3 +114,7 @@ The loop caps animated work at 60 FPS and derives all motion from monotonic delt
 Each frame is drawn into a reusable back-cell buffer. `renderer_present` compares it with the previous buffer, groups adjacent changed cells with the same style, and emits cursor/color/glyph sequences only for those runs. Idle frames produce no terminal writes, and the loop blocks in `poll` when no animation is active.
 
 Terminal output is nonblocking; partial frames are queued and resumed through `POLLOUT` instead of turning temporary backpressure into an application failure. Terminal settings are restored before bounded best-effort visual cleanup and before final persistence I/O. Raw mode and xterm mouse modes (`1000`, `1002`, `1003`, and `1006`) are restored on normal exit, EOF/HUP, output failures, `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT`; `SIGWINCH` triggers a safe resize on the main loop. As with any terminal application, `SIGKILL`, `SIGSTOP`, unrecoverable memory corruption, or uninterruptible kernel I/O cannot guarantee cleanup; `reset` or `stty sane` restores a terminal after such an external failure.
+
+## Author
+
+Created and maintained by **GuestAUser**.
