@@ -4,7 +4,7 @@ This document is the visual and interaction contract for `lowtask`. It codifies 
 
 ## 1. Atmosphere & Identity
 
-`lowtask` is a quiet operator console: near-black, dense, and deliberate, with phosphor-green energy appearing only where the user can act or where focus currently lives. It must evoke the Matrix through controlled luminance, terminal linework, and a faint coordinate-grid rhythm, never through noisy falling-code animation or green text everywhere.
+`lowtask` is a quiet operator console: obsidian-black, dense, and deliberate, with phosphor-green energy appearing only where the user can act or where focus currently lives. Its green-tinted blacks form a restrained depth ramp rather than gray panels. It must evoke the Matrix through controlled luminance, terminal linework, and a faint coordinate-grid rhythm, never through noisy falling-code animation or green text everywhere.
 
 The signature is the **phosphor focus rail**. A one-cell vertical rail follows the active tab or task and intensifies on press. Together with the eight-row tonal matrix in the list surface, it makes the interface recognizable while preserving the speed and clarity of the existing TUI.
 
@@ -24,24 +24,24 @@ Raw RGB values are defined only in this table. Implementation code should name s
 
 | Role | Token | Truecolor | 256-color index | Usage |
 |---|---|---:|---:|---|
-| Canvas | `color.canvas` | `#050806` | 16 | Terminal background and outer frame |
-| Panel | `color.panel` | `#08110D` | 16 | Main list surface |
-| Raised | `color.raised` | `#0D1C14` | 22 | Modal and active tab bed |
-| Row alternate | `color.row-alt` | `#0B1711` | 16 | Tonal row rhythm |
-| Row hover | `color.row-hover` | `#0F2819` | 22 | Pointer hover only |
-| Row selected | `color.row-selected` | `#123923` | 23 | Keyboard-selected row |
-| Row pressed | `color.row-pressed` | `#0D2B1A` | 23 | Pointer button held over a target |
-| Text primary | `color.text` | `#E6F2E9` | 231 | Active task titles and primary labels |
-| Text muted | `color.text-muted` | `#9AAE9E` | 145 | Hints, inactive metadata, completed tasks |
-| Date neutral | `color.date` | `#B6C8BA` | 188 | Future dates and neutral schedule metadata |
-| Phosphor | `color.accent` | `#55F28C` | 121 | Focus rail, active control, completion mark |
-| Phosphor hot | `color.accent-strong` | `#93FFAD` | 157 | Pressed focus rail and short transition peak |
-| Border | `color.border` | `#28613C` | 65 | Panel, modal, and inactive control linework |
-| Grid | `color.grid` | `#153321` | 23 | Sparse non-text coordinate marks |
-| Priority urgent | `color.priority-urgent` | `#FF5CAA` | 205 | Manually assigned Urgent priority |
-| Priority high / overdue | `color.danger` | `#FF6B6B` | 210 | High priority, overdue date, destructive transition |
-| Priority normal / caution | `color.warning` | `#F4C95D` | 222 | Normal priority and time-sensitive warning |
-| Priority low / info | `color.info` | `#6AB8FF` | 117 | Low priority and informational status |
+| Canvas | `color.canvas` | `#010201` | 16 | Terminal background and outer frame |
+| Panel | `color.panel` | `#030604` | 16 | Main list surface |
+| Raised | `color.raised` | `#040806` | 22 | Modal and active tab bed |
+| Row alternate | `color.row-alt` | `#030704` | 16 | Tonal row rhythm |
+| Row hover | `color.row-hover` | `#051109` | 22 | Pointer hover only |
+| Row selected | `color.row-selected` | `#06180E` | 23 | Keyboard-selected row |
+| Row pressed | `color.row-pressed` | `#041109` | 23 | Pointer button held over a target |
+| Text primary | `color.text` | `#DBE8DE` | 231 | Active task titles and primary labels |
+| Text muted | `color.text-muted` | `#839487` | 145 | Hints, inactive metadata, completed tasks |
+| Date neutral | `color.date` | `#A7B8AB` | 188 | Future dates and neutral schedule metadata |
+| Phosphor | `color.accent` | `#4ADE80` | 121 | Focus rail, active control, completion mark |
+| Phosphor hot | `color.accent-strong` | `#86EFAC` | 157 | Pressed focus rail and short transition peak |
+| Border | `color.border` | `#1D4A2E` | 65 | Panel, modal, and inactive control linework |
+| Grid | `color.grid` | `#0D2617` | 23 | Sparse non-text coordinate marks |
+| Priority urgent | `color.priority-urgent` | `#F15D9E` | 205 | Manually assigned Urgent priority |
+| Priority high / overdue | `color.danger` | `#F87171` | 210 | High priority, overdue date, destructive transition |
+| Priority normal / caution | `color.warning` | `#E7C55A` | 222 | Normal priority and time-sensitive warning |
+| Priority low / info | `color.info` | `#68AEEF` | 117 | Low priority and informational status |
 
 ### Semantic Rules
 
@@ -57,7 +57,7 @@ Raw RGB values are defined only in this table. Implementation code should name s
 
 ### Contrast Contract
 
-On `color.row-selected`, the minimum truecolor contrast ratios are: primary text 11.16:1, muted text 5.46:1, accent 8.85:1, priority urgent 4.50:1, danger 4.63:1, warning 8.17:1, and info 6.06:1. These are the worst-case semantic foreground pairings and meet WCAG 2.2 AA for normal text. Border and grid colors are not text colors.
+On `color.row-selected`, the minimum truecolor contrast ratios are: primary text 14.51:1, muted text 5.72:1, date text 8.81:1, accent 10.53:1, accent strong 13.06:1, priority urgent 5.94:1, danger 6.63:1, warning 10.95:1, and info 7.77:1. These are the worst-case semantic foreground pairings and meet WCAG 2.2 AA for normal text. Border and grid colors are not text colors.
 
 ### Priority Semantics, Authoritative
 

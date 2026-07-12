@@ -186,8 +186,14 @@ static void test_matrix_tabs_dates_and_hits(void) {
 }
 
 static void test_design_tokens_responsive_fallbacks_and_dates(void) {
-    assert(color_token_rgb(TUI_COLOR_CANVAS) == 0x050806U);
-    assert(color_token_rgb(TUI_COLOR_ACCENT) == 0x55f28cU);
+    assert(color_token_rgb(TUI_COLOR_CANVAS) == 0x010201U);
+    assert(color_token_rgb(TUI_COLOR_PANEL) == 0x030604U);
+    assert(color_token_rgb(TUI_COLOR_RAISED) == 0x040806U);
+    assert(color_token_rgb(TUI_COLOR_ROW_ALT) == 0x030704U);
+    assert(color_token_rgb(TUI_COLOR_HOVER) == 0x051109U);
+    assert(color_token_rgb(TUI_COLOR_SELECTED) == 0x06180eU);
+    assert(color_token_rgb(TUI_COLOR_PRESSED) == 0x041109U);
+    assert(color_token_rgb(TUI_COLOR_ACCENT) == 0x4ade80U);
     assert(color_token_xterm(TUI_COLOR_SELECTED) == 23U);
     assert(color_token_xterm(TUI_COLOR_DANGER) == 210U);
     assert(color_blend(0x123456U, 0xffffffU, NAN) == 0x123456U);

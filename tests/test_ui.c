@@ -106,7 +106,7 @@ static void test_color_modes(void) {
     assert(strstr(output, "38;2;51;102;153") != NULL);
     assert(color_ansi(output, sizeof(output), 0x336699U, false, false) > 0);
     assert(strstr(output, "48;5;") != NULL);
-    assert(color_token_rgb(TUI_COLOR_URGENT) == 0xff5caaU);
+    assert(color_token_rgb(TUI_COLOR_URGENT) == 0xf15d9eU);
     assert(color_token_xterm(TUI_COLOR_URGENT) == 205U);
     assert(color_ansi(output, sizeof(output), color_token_rgb(TUI_COLOR_URGENT), false, true) > 0);
     assert(strstr(output, "38;5;205") != NULL);
