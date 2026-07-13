@@ -77,7 +77,8 @@ bool session_settle(Session *session, int64_t timeout_ms) {
         if (!session_read(session, &closed) || !child_poll_status(&session->child)) return false;
         if (closed || session->child.reaped) return true;
         const int64_t now = monotonic_milliseconds();
-        if (now < 0 || now >= deadline) return false;
+        if (now < 0) return false;
+        if (now >= deadline) return true;
         struct pollfd input = {.fd = session->master, .events = POLLIN};
         const int remaining = (int)(deadline - now);
         const int ready = poll(&input, 1U, remaining > QUIET_MS ? QUIET_MS : remaining);
