@@ -6,15 +6,20 @@
 
 `lowtask` is a fast, keyboard-and-mouse task manager with a zero-runtime-dependency animated terminal UI for Linux and macOS. Its Matrix-dark operator console provides four manual priorities, due dates, temporal views, priority filtering, deterministic sorts, stable task navigation, Help paging, and responsive layouts using raw ANSI output, `termios`, `poll`, `clock_gettime(CLOCK_MONOTONIC)`, and `SIGWINCH` directly.
 
-## Build on Arch Linux
+## Build on Linux
 
-The `base-devel` group is sufficient; no ncurses or other runtime library is required.
+You need a C17 compiler, POSIX shell, `make`, and `objcopy` from GNU binutils.
+Choose either GCC or Clang; no ncurses or other runtime library is required.
 
 ```sh
-sudo pacman -S --needed base-devel
-make
+make CC=gcc       # GCC
+# make CC=clang   # Clang
 ./lowtask
 ```
+
+Build flags remain configurable through the standard Make variables, for example
+`make CC=clang CFLAGS='-O2 -std=c17 -Wall -Wextra -Werror -Wpedantic'`.
+Install to a custom user prefix with `./install.sh --prefix "$HOME/.local"`.
 
 Install `lowtask` as a system-wide command with:
 
