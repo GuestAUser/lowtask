@@ -36,12 +36,10 @@ typedef struct {
     uint32_t last;
 } UnicodeInterval;
 
-static bool in_zero_width_table(uint32_t codepoint) {
-    static const UnicodeInterval intervals[] = {
-#include "tui/zero_width.inc"
-    };
+static bool unicode_interval_contains(const UnicodeInterval *intervals, size_t count,
+                                      uint32_t codepoint) {
     size_t low = 0U;
-    size_t high = sizeof(intervals) / sizeof(intervals[0]);
+    size_t high = count;
     while (low < high) {
         const size_t middle = low + (high - low) / 2U;
         if (codepoint < intervals[middle].first) {
@@ -52,7 +50,15 @@ static bool in_zero_width_table(uint32_t codepoint) {
             return true;
         }
     }
+
     return false;
+}
+
+static bool in_zero_width_table(uint32_t codepoint) {
+    static const UnicodeInterval intervals[] = {
+#include "tui/zero_width.inc"
+    };
+    return unicode_interval_contains(intervals, sizeof(intervals) / sizeof(intervals[0]), codepoint);
 }
 
 static bool is_zero_width_format(uint32_t codepoint) {
@@ -65,15 +71,7 @@ static bool is_zero_width_format(uint32_t codepoint) {
         {0x13430U, 0x1343fU}, {0x1bca0U, 0x1bca3U}, {0x1d173U, 0x1d17aU},
         {0xe0001U, 0xe0001U}, {0xe0020U, 0xe007fU},
     };
-    size_t low = 0U;
-    size_t high = sizeof(intervals) / sizeof(intervals[0]);
-    while (low < high) {
-        const size_t middle = low + (high - low) / 2U;
-        if (codepoint < intervals[middle].first) high = middle;
-        else if (codepoint > intervals[middle].last) low = middle + 1U;
-        else return true;
-    }
-    return false;
+    return unicode_interval_contains(intervals, sizeof(intervals) / sizeof(intervals[0]), codepoint);
 }
 
 unsigned renderer_codepoint_width(uint32_t codepoint) {

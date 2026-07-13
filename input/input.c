@@ -35,15 +35,31 @@ restart:
                     input_decoder_consume(decoder, 3U);
                     return true;
                 }
+
                 if (decoder->pending[1] == '[' &&
                     (final == '1' || final == '3' || final == '4' || final == '5' ||
                      final == '6' || final == '7' || final == '8')) {
                     if (decoder->length < 4U && !flushing) return false;
                     if (decoder->length >= 4U && decoder->pending[3] == '~') {
-                        event->type = final == '3' ? INPUT_KEY_DELETE :
-                                      (final == '1' || final == '7' ? INPUT_KEY_HOME :
-                                      (final == '4' || final == '8' ? INPUT_KEY_END :
-                                      (final == '5' ? INPUT_KEY_PAGE_UP : INPUT_KEY_PAGE_DOWN)));
+                        switch (final) {
+                            case '1':
+                            case '7':
+                                event->type = INPUT_KEY_HOME;
+                                break;
+                            case '3':
+                                event->type = INPUT_KEY_DELETE;
+                                break;
+                            case '4':
+                            case '8':
+                                event->type = INPUT_KEY_END;
+                                break;
+                            case '5':
+                                event->type = INPUT_KEY_PAGE_UP;
+                                break;
+                            case '6':
+                                event->type = INPUT_KEY_PAGE_DOWN;
+                                break;
+                        }
                         input_decoder_consume(decoder, 4U);
                         return true;
                     }

@@ -1,13 +1,10 @@
 #include "input/controller_drag.h"
 
 #include "core/date.h"
+#include "core/view_order.h"
 #include "input/controller_internal.h"
 
 #include <string.h>
-
-static bool tab_valid(AppTab tab) {
-    return tab >= APP_TAB_ALL && tab < APP_TAB_COUNT;
-}
 
 void controller_drag_clear(AppState *state, bool preserve_source) {
     if (!preserve_source) {
@@ -153,9 +150,11 @@ void controller_drag_track(AppState *state, AppAction action, InputEvent event) 
         controller_set_status(state, "finish or cancel drag");
     }
     if (!state->drag_active) return;
+
     state->drag_target_date_unavailable = false;
-    state->drag_target_valid = action.type == APP_ACTION_SET_TAB && tab_valid(action.tab);
+    state->drag_target_valid = action.type == APP_ACTION_SET_TAB && view_order_tab_valid(action.tab);
     state->drag_target_tab = state->drag_target_valid ? action.tab : APP_TAB_COUNT;
+
     if (state->drag_target_valid &&
         (action.tab == APP_TAB_TODAY || action.tab == APP_TAB_UPCOMING)) {
         char tomorrow[LOWTASK_DUE_DATE_LENGTH + 1U];

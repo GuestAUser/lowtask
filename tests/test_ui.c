@@ -61,6 +61,25 @@ static void test_input_decoder(void) {
     assert(events[0].type == INPUT_KEY_PAGE_UP);
     assert(events[1].type == INPUT_KEY_PAGE_DOWN);
 
+    static const struct {
+        unsigned char sequence[4];
+        InputKeyType expected;
+    } tilde_keys[] = {
+        {{0x1bU, '[', '1', '~'}, INPUT_KEY_HOME},
+        {{0x1bU, '[', '3', '~'}, INPUT_KEY_DELETE},
+        {{0x1bU, '[', '4', '~'}, INPUT_KEY_END},
+        {{0x1bU, '[', '5', '~'}, INPUT_KEY_PAGE_UP},
+        {{0x1bU, '[', '6', '~'}, INPUT_KEY_PAGE_DOWN},
+        {{0x1bU, '[', '7', '~'}, INPUT_KEY_HOME},
+        {{0x1bU, '[', '8', '~'}, INPUT_KEY_END},
+    };
+    for (size_t index = 0U; index < sizeof(tilde_keys) / sizeof(tilde_keys[0]); ++index) {
+        input_decoder_init(&decoder);
+        count = input_decoder_feed(&decoder, tilde_keys[index].sequence,
+                                   sizeof(tilde_keys[index].sequence), events, 8U);
+        assert(count == 1U && events[0].type == tilde_keys[index].expected);
+    }
+
     static const unsigned char malformed_page[] = "\x1b[5xj";
     count = input_decoder_feed(&decoder, malformed_page, sizeof(malformed_page) - 1U,
                                events, 8U);
