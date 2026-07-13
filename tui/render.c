@@ -171,11 +171,12 @@ ssize_t renderer_present(Renderer *renderer, int descriptor) {
     }
     const size_t count = renderer->width * renderer->height;
     if (renderer_has_pending_output(renderer)) {
-        /* Never format a newer diff over queued bytes owned by the previous frame. */
+        const size_t queued_length = renderer->pending_length;
         const int drained = drain_pending_output(renderer, descriptor);
         if (drained <= 0) return drained;
-        /* Queued bytes may describe an older back buffer, so force a full current redraw. */
-        renderer->front_valid = false;
+        memcpy(renderer->front, renderer->back, count * sizeof(*renderer->front));
+        renderer->front_valid = true;
+        return queued_length <= (size_t)SSIZE_MAX ? (ssize_t)queued_length : -1;
     }
     size_t output_length = 0U;
     size_t index = 0U;

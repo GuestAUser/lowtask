@@ -113,8 +113,10 @@ static bool resize_renderer(AppRuntime *runtime) {
 }
 
 static bool render_frame(AppRuntime *runtime) {
-    const TuiViewState view = make_view(runtime);
-    tui_draw(runtime->renderer, runtime->state->tasks, &view);
+    if (!renderer_has_pending_output(runtime->renderer)) {
+        const TuiViewState view = make_view(runtime);
+        tui_draw(runtime->renderer, runtime->state->tasks, &view);
+    }
     return renderer_present(runtime->renderer, runtime->terminal->output_fd) >= 0;
 }
 
@@ -174,6 +176,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
         }
         /* Monotonic elapsed time skips missed intermediate frames instead of accumulating lag. */
         if ((needs_frame || is_animating(&runtime)) && now >= next_frame) {
+            const bool draining_output = renderer_has_pending_output(renderer);
             float delta = (float)(now - previous);
             if (delta < 0.0F) delta = 0.0F;
             app_state_update(state, delta);
@@ -187,7 +190,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             }
             previous = now;
             next_frame = now + FRAME_SECONDS;
-            needs_frame = renderer_has_pending_output(renderer);
+            needs_frame = draining_output || renderer_has_pending_output(renderer);
         }
 
         /* The renderer retains partial frames; POLLOUT merely re-arms its bounded drain path. */
@@ -197,11 +200,9 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
              .events = renderer_has_pending_output(renderer) ? POLLOUT : 0},
         };
         const nfds_t descriptor_count = descriptors[1].events == 0 ? 1U : 2U;
-        const double poll_now = terminal_monotonic_seconds();
-        const int timeout = runtime_poll_timeout(&runtime.decoder, runtime.input_flush_deadline,
-            needs_frame, is_animating(&runtime), next_frame, poll_now);
         const int poll_result = poll(descriptors, descriptor_count,
-                                     timeout);
+            runtime_poll_timeout(&runtime.decoder, runtime.input_flush_deadline, needs_frame,
+                                 is_animating(&runtime), next_frame, terminal_monotonic_seconds()));
         if (poll_result < 0) {
             if (errno == EINTR) continue;
             exit_code = 1;
@@ -231,8 +232,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             if (count > 0) {
                 event_count = input_decoder_feed(&runtime.decoder, bytes, (size_t)count,
                                                   events, sizeof(events) / sizeof(events[0]));
-                runtime.input_flush_deadline = runtime_input_deadline(
-                    &runtime.decoder, terminal_monotonic_seconds());
+                runtime.input_flush_deadline = runtime_input_deadline(&runtime.decoder, terminal_monotonic_seconds());
             } else if (count == 0) {
                 break;
             } else if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -246,8 +246,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             terminal_monotonic_seconds() >= runtime.input_flush_deadline) {
             event_count = input_decoder_flush(&runtime.decoder, events,
                                                sizeof(events) / sizeof(events[0]));
-            runtime.input_flush_deadline = runtime_input_deadline(
-                &runtime.decoder, terminal_monotonic_seconds());
+            runtime.input_flush_deadline = runtime_input_deadline(&runtime.decoder, terminal_monotonic_seconds());
         }
         const AppEffect effect_before_events = state->effect;
         for (size_t index = 0U; index < event_count; ++index) {

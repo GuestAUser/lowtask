@@ -243,6 +243,7 @@ static void test_nonblocking_renderer_backpressure(void) {
     assert(errno == EAGAIN || errno == EWOULDBLOCK);
     assert(renderer_present(&renderer, descriptors[1]) > 0);
     assert(!renderer_has_pending_output(&renderer));
+    assert(renderer_present(&renderer, descriptors[1]) == 0);
     renderer_free(&renderer);
     assert(close(descriptors[0]) == 0);
     assert(close(descriptors[1]) == 0);
