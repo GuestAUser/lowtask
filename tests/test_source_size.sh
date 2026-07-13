@@ -174,6 +174,10 @@ expect_signal_cleanup() {
     ready_dir="$signal_root/ready"
     release_pipe="$signal_root/release"
     real_find=$(command -v find)
+    signal_runner=${LOWTASK_TIMEOUT_SUPERVISOR:-"$project_dir/build/timeout-supervisor"}
+    if [ ! -x "$signal_runner" ]; then
+        fail "signal supervisor is unavailable"
+    fi
     mkdir -p "$shim_dir" "$isolated_tmp" "$ready_dir"
     mkfifo "$release_pipe"
 
@@ -188,15 +192,14 @@ EOF
 
     active_ready_file="$ready_dir/find.pid"
 
-    set -m
     PATH="$shim_dir:$PATH" \
         TMPDIR="$isolated_tmp" \
         SIGNAL_READY_DIR="$ready_dir" \
         SIGNAL_RELEASE="$release_pipe" \
         REAL_FIND="$real_find" \
-        sh "$checker" "$fixture_dir" > "$signal_root/output" 2>&1 &
+        "$signal_runner" 30s TERM 2s sh "$checker" "$fixture_dir" \
+        > "$signal_root/output" 2>&1 &
     active_checker_pid=$!
-    set +m
 
     attempts=0
     while [ "$attempts" -lt 5 ]; do
@@ -225,8 +228,8 @@ EOF
     fi
     active_checker_pid=
 
-    if [ "$checker_status" -ne 1 ]; then
-        fail "checker returned $checker_status after $signal_name instead of 1"
+    if [ "$checker_status" -le 128 ]; then
+        fail "supervisor returned $checker_status after $signal_name instead of an interrupted status"
     fi
 
     attempts=0

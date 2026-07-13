@@ -205,8 +205,8 @@ build/performance-objects/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(PLATFORM_CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
 
-check-source-size:
-	sh tests/test_source_size.sh
+check-source-size: $(TIMEOUT_SUPERVISOR)
+	LOWTASK_TIMEOUT_SUPERVISOR="$(CURDIR)/$(TIMEOUT_SUPERVISOR)" sh tests/test_source_size.sh
 	sh scripts/check-source-size.sh .
 
 test: check-source-size $(TIMEOUT_SUPERVISOR) $(COMPONENT_TEST_BINARIES) $(PTY_TEST_BINARY)
