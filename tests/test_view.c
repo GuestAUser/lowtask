@@ -95,6 +95,32 @@ static size_t text_row(const Renderer *renderer, const char *needle) {
     return SIZE_MAX;
 }
 
+static size_t text_row_at(const Renderer *renderer, size_t column, const char *text) {
+    const size_t length = strlen(text);
+    if (column + length > renderer->width) return SIZE_MAX;
+    for (size_t row = 0U; row < renderer->height; ++row) {
+        size_t offset = 0U;
+        while (offset < length) {
+            const RendererCell *cell = &renderer->back[row * renderer->width + column + offset];
+            if (cell->glyph_length != 1U || cell->glyph[0] != text[offset]) break;
+            ++offset;
+        }
+        if (offset == length) return row;
+    }
+    return SIZE_MAX;
+}
+
+static bool region_has_text(const Renderer *renderer, const TuiRect region) {
+    for (size_t row = region.y; row < region.y + region.height; ++row) {
+        for (size_t column = region.x; column < region.x + region.width; ++column) {
+            const RendererCell *cell = &renderer->back[row * renderer->width + column];
+            if (cell->glyph_length > 0U &&
+                (cell->glyph_length != 1U || cell->glyph[0] != ' ')) return true;
+        }
+    }
+    return false;
+}
+
 static uint64_t add_task(TaskList *tasks, const char *text, TaskPriority priority,
                          const char *due_date, bool completed) {
     uint64_t id = 0U;
@@ -805,6 +831,119 @@ static void test_todo7_groups_pickers_and_help_overlay(void) {
     task_list_free(&tasks);
 }
 
+static void test_help_wide_columns_balance_shared_scroll(void) {
+    TaskList tasks;
+    task_list_init(&tasks);
+    AppState state;
+    assert(app_state_init(&state, &tasks));
+    state.mode = APP_MODE_HELP;
+    Renderer renderer;
+    assert(renderer_init(&renderer, 96U, 24U, true));
+    TuiViewState view = {
+        .app = &state, .panel_progress = 1.0F, .mode = TUI_MODE_HELP,
+        .status = state.status,
+    };
+    size_t lines = 0U;
+    size_t page_rows = 0U;
+    tui_help_metrics(96U, 24U, false, &lines, &page_rows);
+    assert(lines > page_rows);
+    app_state_set_help_metrics(&state, lines, page_rows);
+    TuiLayout layout;
+    assert(tui_layout_compute(96U, 24U, &view, &layout));
+    assert(layout.help_body.height == page_rows);
+    const size_t column_width = (layout.help_body.width - 3U) / 2U;
+    const size_t right_column = layout.help_body.x + column_width + 3U;
+    static const char *wide_titles[] = {
+        "Navigation and views", "Add and edit", "Completion and deletion", "Priority",
+        "Schedule and due state", "Pointer safety", "Filter and sort", "Help",
+        "Drag and drop",
+    };
+    size_t title_rows[sizeof(wide_titles) / sizeof(wide_titles[0])];
+    bool title_right[sizeof(wide_titles) / sizeof(wide_titles[0])] = {false};
+    for (size_t index = 0U; index < sizeof(title_rows) / sizeof(title_rows[0]); ++index) {
+        title_rows[index] = SIZE_MAX;
+    }
+    for (size_t scroll = 0U; scroll <= lines - page_rows; ++scroll) {
+        state.help_scroll = scroll;
+        tui_draw(&renderer, &tasks, &view);
+        for (size_t index = 0U; index < sizeof(wide_titles) / sizeof(wide_titles[0]); ++index) {
+            const size_t left_row = text_row_at(&renderer, layout.help_body.x, wide_titles[index]);
+            const size_t right_row = text_row_at(&renderer, right_column, wide_titles[index]);
+            assert(left_row == SIZE_MAX || right_row == SIZE_MAX);
+            const bool right = left_row == SIZE_MAX;
+            const size_t row = right ? right_row : left_row;
+            if (title_rows[index] == SIZE_MAX && row != SIZE_MAX) {
+                title_rows[index] = scroll + row - layout.help_body.y;
+                title_right[index] = right;
+            }
+        }
+    }
+    for (size_t index = 0U; index < sizeof(title_rows) / sizeof(title_rows[0]); ++index) {
+        assert(title_rows[index] != SIZE_MAX);
+    }
+    size_t split = 0U;
+    while (split < sizeof(title_right) / sizeof(title_right[0]) && !title_right[split]) ++split;
+    assert(split > 0U && split < sizeof(title_right) / sizeof(title_right[0]));
+    for (size_t index = 0U; index < split; ++index) assert(!title_right[index]);
+    for (size_t index = split; index < sizeof(title_right) / sizeof(title_right[0]); ++index) {
+        assert(title_right[index]);
+    }
+    assert(title_rows[0] == 0U && title_rows[split] == 0U);
+    for (size_t index = 1U; index < split; ++index) {
+        assert(title_rows[index - 1U] < title_rows[index]);
+    }
+    for (size_t index = split + 1U; index < sizeof(title_rows) / sizeof(title_rows[0]); ++index) {
+        assert(title_rows[index - 1U] < title_rows[index]);
+    }
+
+    const size_t maximum = lines - page_rows;
+    const TuiRect left_region = {
+        .x = layout.help_body.x,
+        .y = layout.help_body.y,
+        .width = column_width,
+        .height = layout.help_body.height,
+    };
+    const TuiRect right_region = {
+        .x = right_column,
+        .y = layout.help_body.y,
+        .width = column_width,
+        .height = layout.help_body.height,
+    };
+    const size_t scrolls[] = {0U, maximum / 2U, maximum};
+    char footer[64];
+    for (size_t index = 0U; index < sizeof(scrolls) / sizeof(scrolls[0]); ++index) {
+        state.help_scroll = scrolls[index];
+        tui_draw(&renderer, &tasks, &view);
+        assert(region_has_text(&renderer, left_region));
+        assert(region_has_text(&renderer, right_region));
+        const size_t last = state.help_scroll + page_rows < lines ?
+                            state.help_scroll + page_rows : lines;
+        (void)snprintf(footer, sizeof(footer), "HELP %zu-%zu/%zu",
+                       state.help_scroll + 1U, last, lines);
+        assert(screen_contains(&renderer, footer));
+    }
+
+    static const size_t single_column_widths[] = {64U, 24U};
+    for (size_t index = 0U;
+         index < sizeof(single_column_widths) / sizeof(single_column_widths[0]); ++index) {
+        const size_t width = single_column_widths[index];
+        assert(renderer_resize(&renderer, width, 24U));
+        state.help_scroll = 0U;
+        tui_help_metrics(width, 24U, false, &lines, &page_rows);
+        app_state_set_help_metrics(&state, lines, page_rows);
+        assert(tui_layout_compute(width, 24U, &view, &layout));
+        tui_draw(&renderer, &tasks, &view);
+        assert(text_row_at(&renderer, layout.help_body.x, "Navigation and views") ==
+               layout.help_body.y);
+        assert(text_row_at(&renderer, layout.help_body.x, "Schedule and due state") ==
+               SIZE_MAX);
+    }
+
+    renderer_free(&renderer);
+    app_state_dispose(&state);
+    task_list_free(&tasks);
+}
+
 static void test_todo7_drag_visuals_and_display_row_scroll(void) {
     TaskList tasks;
     task_list_init(&tasks);
@@ -880,6 +1019,7 @@ int main(void) {
     test_truncation_status_and_pluralization();
     test_todo7_projection_controls_and_compact_metadata();
     test_todo7_groups_pickers_and_help_overlay();
+    test_help_wide_columns_balance_shared_scroll();
     test_todo7_drag_visuals_and_display_row_scroll();
     puts("test_view: PASS");
     return 0;

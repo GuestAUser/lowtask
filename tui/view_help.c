@@ -84,7 +84,7 @@ static void help_add_wrapped(HelpVisualLine *lines, size_t capacity, size_t *cou
 }
 
 static size_t build_help_column(HelpVisualLine *lines, size_t capacity, size_t width,
-                                size_t first_group, size_t end_group) {
+                                 size_t first_group, size_t end_group) {
     size_t count = 0U;
     for (size_t index = first_group; index < end_group; ++index) {
         help_add_wrapped(lines, capacity, &count, help_groups[index].title, width, true);
@@ -93,6 +93,25 @@ static size_t build_help_column(HelpVisualLine *lines, size_t capacity, size_t w
         if (index + 1U < end_group && count < capacity) lines[count++] = (HelpVisualLine){0};
     }
     return count;
+}
+
+static size_t help_column_split(size_t width) {
+    HelpVisualLine lines[256];
+    const size_t group_count = sizeof(help_groups) / sizeof(help_groups[0]);
+    size_t best_split = 1U;
+    size_t best_difference = SIZE_MAX;
+    /* Shared scrolling stays useful only while both group-aligned columns have content. */
+    for (size_t split = 1U; split < group_count; ++split) {
+        const size_t left_count = build_help_column(lines, 256U, width, 0U, split);
+        const size_t right_count = build_help_column(lines, 256U, width, split, group_count);
+        const size_t difference = left_count > right_count ?
+                                  left_count - right_count : right_count - left_count;
+        if (difference < best_difference) {
+            best_split = split;
+            best_difference = difference;
+        }
+    }
+    return best_split;
 }
 
 static void help_geometry(size_t width, size_t height, size_t *body_width,
@@ -125,8 +144,9 @@ void tui_help_metrics(size_t width, size_t height, bool ascii, size_t *line_coun
     HelpVisualLine right[256];
     if (two_columns) {
         const size_t column_width = (body_width - 3U) / 2U;
-        const size_t left_count = build_help_column(left, 256U, column_width, 0U, 3U);
-        const size_t right_count = build_help_column(right, 256U, column_width, 3U,
+        const size_t split = help_column_split(column_width);
+        const size_t left_count = build_help_column(left, 256U, column_width, 0U, split);
+        const size_t right_count = build_help_column(right, 256U, column_width, split,
             sizeof(help_groups) / sizeof(help_groups[0]));
         *line_count = left_count > right_count ? left_count : right_count;
     } else {
@@ -171,8 +191,9 @@ void tui_view_draw_help(Renderer *renderer, const TuiLayout *layout,
     HelpVisualLine right[256];
     if (renderer->width >= TUI_WIDE_COLUMNS && layout->help_body.width >= 7U) {
         const size_t column_width = (layout->help_body.width - 3U) / 2U;
-        const size_t left_count = build_help_column(left, 256U, column_width, 0U, 3U);
-        const size_t right_count = build_help_column(right, 256U, column_width, 3U,
+        const size_t split = help_column_split(column_width);
+        const size_t left_count = build_help_column(left, 256U, column_width, 0U, split);
+        const size_t right_count = build_help_column(right, 256U, column_width, split,
             sizeof(help_groups) / sizeof(help_groups[0]));
         draw_help_lines(renderer, layout->help_body, view->app, left, left_count,
                         layout->help_body.x, column_width);
