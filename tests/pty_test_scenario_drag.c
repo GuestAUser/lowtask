@@ -52,8 +52,11 @@ bool scenario_drag_normal(void) {
     CHECK(screen_find_row_title(&session.screen, "future normal gamma", &source_x, &source_y) &&
           screen_find_ascii(&session.screen, "COMPLETED", &target_x, &target_y),
           "changed-target geometry missing");
+    offset = session.transcript.length;
     CHECK(mouse_event(&session, 0U, source_x + 8U, source_y, 'M') &&
-          mouse_event(&session, 32U, target_x + 2U, target_y, 'M'), "changed-target press/motion failed");
+          mouse_event(&session, 32U, target_x + 2U, target_y, 'M') &&
+          wait_transcript_since(&session, offset, "DRAG", SESSION_DEADLINE_MS),
+          "changed-target press/motion failed");
     size_t today_x = 0U, today_y = 0U;
     CHECK(screen_find_ascii(&session.screen, "TODAY", &today_x, &today_y) &&
           mouse_event(&session, 0U, today_x + 2U, today_y, 'm') &&
