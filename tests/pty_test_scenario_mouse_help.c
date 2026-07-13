@@ -55,8 +55,8 @@ bool scenario_mouse_help_modal(void) {
     CHECK(session_send(&session, "?") && session_wait(&session, "HELP 1-", SESSION_DEADLINE_MS),
           "Help context open failed");
     const uint32_t help_top = screen_hash(&session.screen);
-    CHECK(session_send(&session, "\x1b[6~") && session_settle(&session, 250) &&
-          screen_hash(&session.screen) != help_top, "Help PageDown did not change page");
+    CHECK(session_send(&session, "\x1b[6~") && session_wait(&session, "HELP 19-", SESSION_DEADLINE_MS) &&
+           screen_hash(&session.screen) != help_top, "Help PageDown did not change page");
     CHECK(session_send(&session, "\x1b[F\x1b[F\x1b[<65;2;5M") && session_settle(&session, 250),
           "Help End/wheel clamp failed");
     CHECK(session_send(&session, "a\t") && mouse_click(&session, 30U, 5U) && session_settle(&session, 200) &&
