@@ -4,7 +4,7 @@
   <img src="assets/lowtask-logo.svg" alt="lowtask terminal task operator" width="544">
 </p>
 
-`lowtask` is a fast, keyboard-and-mouse task manager with a zero-runtime-dependency animated terminal UI for Linux. Its Matrix-dark operator console provides four manual priorities, due dates, temporal views, priority filtering, deterministic sorts, stable task navigation, Help paging, and responsive layouts using raw ANSI output, `termios`, `poll`, `clock_gettime(CLOCK_MONOTONIC)`, and `SIGWINCH` directly.
+`lowtask` is a fast, keyboard-and-mouse task manager with a zero-runtime-dependency animated terminal UI for Linux and macOS. Its Matrix-dark operator console provides four manual priorities, due dates, temporal views, priority filtering, deterministic sorts, stable task navigation, Help paging, and responsive layouts using raw ANSI output, `termios`, `poll`, `clock_gettime(CLOCK_MONOTONIC)`, and `SIGWINCH` directly.
 
 ## Build on Arch Linux
 
@@ -16,16 +16,28 @@ make
 ./lowtask
 ```
 
-Install `lowtask` as a system-wide command, including its terminal launcher and icon, with:
+Install `lowtask` as a system-wide command with:
 
 ```sh
 make && sudo ./install.sh
 lowtask
 ```
 
-Use `sudo ./install.sh --uninstall` to remove it. For a user-local installation, run `./install.sh --prefix "$HOME/.local"` and ensure `$HOME/.local/bin` is in `PATH`. The SVG mark is embedded in the ELF executable as `.lowtask.icon`; Linux launchers use the separately installed icon and `lowtask.desktop` metadata because ELF has no standard launcher-icon field.
+Use `sudo ./install.sh --uninstall` to remove it. For a user-local installation, run `./install.sh --prefix "$HOME/.local"` and ensure `$HOME/.local/bin` is in `PATH`. Linux installs the freedesktop launcher and SVG icon alongside the executable; the SVG is also embedded in the ELF executable as `.lowtask.icon`.
 
-Run the regression suite with `make test`, verify installation behavior with `./tests/test_install.sh`, and remove generated files with `make clean`. The project targets **C17**: it keeps the implementation within a stable, broadly supported ISO C baseline while allowing current GCC and Clang on Arch to enforce strict diagnostics. The default build uses `-Wall -Wextra -Werror -Wpedantic`, `_POSIX_C_SOURCE=200809L`, and `_DEFAULT_SOURCE`.
+## Build on macOS
+
+Install Apple's Command Line Tools, then build and run with the system Clang:
+
+```sh
+xcode-select --install
+make CC=clang
+./lowtask
+```
+
+Use the same `./install.sh` command to install or uninstall under `/usr/local` or a user-local prefix. macOS installs only the executable because it has no freedesktop launcher or icon path. The SVG mark is embedded in the Mach-O executable as the read-only `__TEXT,__lowtask_icon` section.
+
+Run the regression suite with `make test`, verify installation behavior with `./tests/test_install.sh`, and remove generated files with `make clean`. Make builds a small C test supervisor that applies monotonic deadlines to an isolated process group, so the suite does not depend on GNU `timeout` and cannot leave test descendants running. The project targets **C17**: it keeps the implementation within a stable, broadly supported ISO C baseline while Linux GCC and Clang and Apple Clang enforce strict diagnostics. The default build uses `-Wall -Wextra -Werror -Wpedantic`, `_POSIX_C_SOURCE=200809L`, and `_DEFAULT_SOURCE`.
 
 `lowtask` intentionally has no runtime library or package dependency: it does not link ncurses, notcurses, or libutil. Raw ANSI sequences provide frame and color control. Truecolor is detected through `truecolor`/`24bit` in `$COLORTERM` or `direct` in `$TERM`; otherwise the semantic xterm-256 palette is emitted. Unicode rendering requires a UTF-8 locale and a non-`dumb` terminal. Set `LOWTASK_ASCII=1` to force ASCII borders, controls, priorities, completion marks, and drag cues. Set `LOWTASK_REDUCE_MOTION=1` to apply final interaction states immediately while preserving every result and status message.
 
@@ -98,7 +110,7 @@ One process holds an exclusive advisory lock for the lifetime of the application
 
 - `core/` owns the task vector, Gregorian date rules, filtered application state, validation, and atomic persistence.
 - `input/` incrementally decodes UTF-8, keyboard escape sequences, and bounded xterm SGR mouse reports, then maps semantic actions to state transitions.
-- `platform/` owns Linux terminal raw mode, capability detection, monotonic timing, resize, and termination signals.
+- `platform/` owns POSIX terminal raw mode, capability detection, monotonic timing, resize, and termination signals on Linux and macOS.
 - `tui/` owns semantic colors, shared draw/hit-test geometry, reusable cell buffers, diff rendering, animation tweens, and responsive presentation.
 - `tui/view.c` orchestrates each frame. `view_common.c` provides shared cell-safe drawing primitives; `view_chrome.c`, `view_rows.c`, `view_help.c`, and `view_overlay.c` own header and tab chrome, task rows and date metadata, Help layout, and transient overlays respectively.
 - `app/runtime.c` owns the poll-driven input, animation, resize, and nonblocking render loop.

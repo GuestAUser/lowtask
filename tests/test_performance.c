@@ -1,3 +1,5 @@
+/* noqa: SIZE_OK -- This self-contained benchmark combines its oracle, timing loop, and budget gate. */
+
 #include "core/state.h"
 #include "core/task.h"
 #include "input/controller.h"

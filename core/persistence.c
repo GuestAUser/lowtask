@@ -1,3 +1,7 @@
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#define _DARWIN_C_SOURCE
+#endif
+
 #include "core/persistence.h"
 #include "core/persistence_format.h"
 
@@ -32,6 +36,18 @@ static bool fsync_retry(int descriptor) {
         if (errno != EINTR) return false;
     }
     return true;
+}
+
+static bool sync_temporary_file(int descriptor) {
+#ifdef __APPLE__
+    while (fcntl(descriptor, F_FULLFSYNC) != 0) {
+        if (errno == EINVAL || errno == ENOTSUP) return fsync_retry(descriptor);
+        if (errno != EINTR) return false;
+    }
+    return true;
+#else
+    return fsync_retry(descriptor);
+#endif
 }
 
 bool persistence_load(const char *path, TaskList *list, char *error, size_t error_size) {
@@ -140,6 +156,7 @@ void persistence_unlock(int lock_fd) {
 }
 
 static bool sync_parent_directory(const char *path) {
+    const int entry_errno = errno;
     char parent[PATH_MAX];
     const size_t length = strlen(path);
     if (length == 0U || length >= sizeof(parent)) return false;
@@ -157,8 +174,20 @@ static bool sync_parent_directory(const char *path) {
     const bool ok = fsync_retry(descriptor);
     const int saved_errno = errno;
     (void)close(descriptor);
+#ifdef __APPLE__
+    /* macOS can reject directory fsync with EINVAL; that path cannot establish
+       directory-entry durability after the rename. */
+    if (!ok && saved_errno == EINVAL) {
+        errno = entry_errno;
+        return true;
+    }
+#endif
+    if (ok) {
+        errno = entry_errno;
+        return true;
+    }
     errno = saved_errno;
-    return ok;
+    return false;
 }
 
 bool persistence_save(const char *path, const TaskList *list, char *error, size_t error_size) {
@@ -191,8 +220,7 @@ bool persistence_save(const char *path, const TaskList *list, char *error, size_
     FILE *file = fdopen(descriptor, "wb");
     bool ok = file != NULL;
     if (ok) {
-        /* Flush and fsync temporary contents before rename, then fsync the parent to commit its name. */
-        ok = persistence_format_write(file, list) && fflush(file) == 0 && fsync_retry(descriptor);
+        ok = persistence_format_write(file, list) && fflush(file) == 0 && sync_temporary_file(descriptor);
         if (fclose(file) != 0) {
             ok = false;
         }

@@ -1,11 +1,8 @@
 CC ?= cc
+LD ?= ld
 OBJCOPY ?= objcopy
-INSTALL ?= install
 PREFIX ?= /usr/local
-BINDIR ?= $(PREFIX)/bin
-DATADIR ?= $(PREFIX)/share
-ICONDIR ?= $(DATADIR)/icons/hicolor/scalable/apps
-APPLICATIONSDIR ?= $(DATADIR)/applications
+unexport PREFIX DESTDIR
 CPPFLAGS ?= -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -I.
 CFLAGS ?= -O2 -std=c17 -Wall -Wextra -Werror -Wpedantic
 LDFLAGS ?=
@@ -13,6 +10,13 @@ LDLIBS ?=
 TEST_TIMEOUT ?= 5s
 PTY_TIMEOUT ?= 10s
 PTY_KILL_AFTER ?= 2s
+ifeq ($(origin HOST_OS),undefined)
+HOST_OS := $(shell uname -s)
+endif
+unexport HOST_OS
+HOST_OS_LITERAL := $(value HOST_OS)
+TIMEOUT_SUPERVISOR := build/timeout-supervisor
+TIMEOUT_RUNNER := ./$(TIMEOUT_SUPERVISOR)
 
 APP_SOURCES := \
 	main.c \
@@ -48,11 +52,25 @@ APP_SOURCES := \
 APP_OBJECTS := $(APP_SOURCES:%.c=build/%.o)
 APP_DEPS := $(APP_OBJECTS:.o=.d)
 APP_ICON := assets/lowtask-mark.svg
-APP_DESKTOP := assets/lowtask.desktop
+APP_LINK_OBJECTS := $(APP_OBJECTS)
+
+ifeq ($(HOST_OS_LITERAL),Darwin)
+APP_ICON_OBJECT := build/assets/lowtask-icon.o
+APP_LINK_OBJECTS += $(APP_ICON_OBJECT)
+endif
 
 TEST_CORE_SOURCES := tests/test_core.c core/date.c core/task.c
-TEST_PERSISTENCE_SOURCES := tests/test_persistence.c core/date.c core/task.c core/persistence.c \
-	core/persistence_format.c
+TEST_PERSISTENCE_SOURCES := \
+	tests/test_persistence.c \
+	tests/persistence_test_support.c \
+	tests/persistence_test_format.c \
+	tests/persistence_test_compatibility.c \
+	tests/persistence_test_malformed.c \
+	tests/persistence_test_durability.c \
+	tests/persistence_test_preflight.c \
+	tests/persistence_test_locking.c \
+	tests/persistence_test_default_path.c \
+	core/date.c core/task.c core/persistence.c core/persistence_format.c
 TEST_UI_SOURCES := tests/test_ui.c input/input.c input/mouse_decoder.c tui/animation.c tui/color.c \
 	tui/render.c tui/text_cells.c
 TEST_PLATFORM_SOURCES := tests/test_platform.c platform/terminal.c
@@ -62,12 +80,45 @@ TEST_VIEW_SOURCES := tests/test_view.c core/date.c core/task.c core/state.c core
 	tui/text_cells.c \
 	tui/view_common.c tui/view_chrome.c tui/view_rows.c tui/view_help.c \
 	tui/view_overlay.c tui/view.c
-TEST_CONTROLLER_SOURCES := tests/test_controller.c core/date.c core/task.c core/state.c \
-	core/view_order.c core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c \
+TEST_CONTROLLER_SOURCES := \
+	tests/test_controller.c \
+	tests/controller_test_support.c \
+	tests/controller_test_actions.c \
+	tests/controller_test_navigation.c \
+	tests/controller_test_navigation_actions.c \
+	tests/controller_test_modal_workflows.c \
+	tests/controller_test_modal_regressions.c \
+	tests/controller_test_modal_suite.c \
+	tests/controller_test_drag_behavior.c \
+	tests/controller_test_drag_interruptions.c \
+	tests/controller_test_drag_resolution.c \
+	tests/controller_test_drag_outcomes.c \
+	core/date.c core/task.c core/state.c core/view_order.c core/view_sort.c \
+	input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c \
 	input/controller_navigation.c input/controller_drag.c
-TEST_STATE_SOURCES := tests/test_state.c core/date.c core/task.c core/state.c core/view_order.c \
-	core/view_sort.c
-TEST_PTY_SOURCES := tests/test_pty.c core/date.c
+TEST_STATE_SOURCES := \
+	tests/test_state.c \
+	tests/state_test_support.c \
+	tests/state_test_projection.c \
+	tests/state_test_lifecycle.c \
+	core/date.c core/task.c core/state.c core/view_order.c core/view_sort.c
+TEST_PTY_SOURCES := \
+	tests/test_pty.c \
+	tests/pty_test_runtime.c \
+	tests/pty_test_transcript.c \
+	tests/pty_test_screen_parser.c \
+	tests/pty_test_screen_queries.c \
+	tests/pty_test_model.c \
+	tests/pty_test_session_io.c \
+	tests/pty_test_interactions.c \
+	tests/pty_test_session.c \
+	tests/pty_test_child.c \
+	tests/pty_test_scenario_keyboard.c \
+	tests/pty_test_scenario_mouse_help.c \
+	tests/pty_test_scenario_drag.c \
+	tests/pty_test_scenario_reduced_signal.c \
+	tests/pty_test_scenario_legacy_lock.c \
+	core/date.c
 
 TEST_PERFORMANCE_SOURCES := tests/test_performance.c core/date.c core/task.c core/state.c core/view_order.c \
 	core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c input/controller_navigation.c input/controller_drag.c tui/animation.c tui/color.c tui/layout.c \
@@ -108,26 +159,37 @@ SANITIZE_CFLAGS := -O1 -g3 -std=c17 -Wall -Wextra -Werror -Wpedantic -UNDEBUG \
 SANITIZE_LDFLAGS := -fno-omit-frame-pointer -fno-sanitize-recover=all \
 	-fsanitize=address,undefined
 
-.PHONY: all clean install uninstall test perf-record perf-gate perf-record-run perf-gate-run sanitize
+.PHONY: all clean install uninstall check-source-size test perf-record perf-gate perf-record-run \
+	perf-gate-run sanitize
 
 all: lowtask
 
-lowtask: $(APP_OBJECTS) $(APP_ICON)
-	$(CC) $(LDFLAGS) $(APP_OBJECTS) $(LDLIBS) -o $@
+lowtask: $(APP_LINK_OBJECTS) $(APP_ICON)
+	$(CC) $(LDFLAGS) $(APP_LINK_OBJECTS) $(LDLIBS) -o $@
+
+ifeq ($(HOST_OS_LITERAL),Linux)
 	$(OBJCOPY) --add-section .lowtask.icon=$(APP_ICON) \
 		--set-section-flags .lowtask.icon=contents,readonly $@
+endif
 
-install: lowtask $(APP_DESKTOP)
-	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(ICONDIR)" \
-		"$(DESTDIR)$(APPLICATIONSDIR)"
-	$(INSTALL) -m 0755 lowtask "$(DESTDIR)$(BINDIR)/lowtask"
-	$(INSTALL) -m 0644 $(APP_ICON) "$(DESTDIR)$(ICONDIR)/lowtask.svg"
-	$(INSTALL) -m 0644 $(APP_DESKTOP) "$(DESTDIR)$(APPLICATIONSDIR)/lowtask.desktop"
+build/assets/lowtask-icon.o: $(APP_ICON)
+	@mkdir -p $(dir $@)
+	$(LD) -r -sectcreate __TEXT __lowtask_icon $< -o $@
+
+install uninstall: export LOWTASK_PROJECT_DIR := $(CURDIR)
+install uninstall: export LOWTASK_PREFIX := $(value PREFIX)
+install uninstall: export LOWTASK_DESTDIR := $(value DESTDIR)
+install uninstall: export LOWTASK_HOST_OS := $(HOST_OS_LITERAL)
+
+install: lowtask
+	sh scripts/install-files.sh install
 
 uninstall:
-	rm -f -- "$(DESTDIR)$(BINDIR)/lowtask" \
-		"$(DESTDIR)$(ICONDIR)/lowtask.svg" \
-		"$(DESTDIR)$(APPLICATIONSDIR)/lowtask.desktop"
+	sh scripts/install-files.sh uninstall
+
+$(TIMEOUT_SUPERVISOR): scripts/timeout-supervisor.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -141,11 +203,15 @@ build/performance-objects/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
 
-test: $(COMPONENT_TEST_BINARIES) $(PTY_TEST_BINARY)
+check-source-size:
+	sh tests/test_source_size.sh
+	sh scripts/check-source-size.sh .
+
+test: check-source-size $(TIMEOUT_SUPERVISOR) $(COMPONENT_TEST_BINARIES) $(PTY_TEST_BINARY)
 	@for test_binary in $(COMPONENT_TEST_BINARIES); do \
-		ulimit -c 0; timeout --signal=KILL $(TEST_TIMEOUT) ./$$test_binary || exit $$?; \
+		ulimit -c 0; $(TIMEOUT_RUNNER) $(TEST_TIMEOUT) KILL 0s ./$$test_binary || exit $$?; \
 	done
-	@ulimit -c 0; timeout --signal=TERM --kill-after=$(PTY_KILL_AFTER) $(PTY_TIMEOUT) ./$(PTY_TEST_BINARY)
+	@ulimit -c 0; $(TIMEOUT_RUNNER) $(PTY_TIMEOUT) TERM $(PTY_KILL_AFTER) ./$(PTY_TEST_BINARY)
 
 build/tests/test_core: $(TEST_CORE_OBJECTS)
 	@mkdir -p $(dir $@)
@@ -187,12 +253,12 @@ build/tests/test_performance: $(TEST_PERFORMANCE_OBJECTS)
 	@mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-perf-record:
-	+@ulimit -c 0; timeout --signal=TERM --kill-after=2s 30s \
+perf-record: $(TIMEOUT_SUPERVISOR)
+	+@ulimit -c 0; $(TIMEOUT_RUNNER) 30s TERM 2s \
 		$(MAKE) --no-print-directory perf-record-run
 
-perf-gate:
-	+@ulimit -c 0; timeout --signal=TERM --kill-after=2s 30s \
+perf-gate: $(TIMEOUT_SUPERVISOR)
+	+@ulimit -c 0; $(TIMEOUT_RUNNER) 30s TERM 2s \
 		$(MAKE) --no-print-directory perf-gate-run
 
 perf-record-run: $(PERFORMANCE_TEST_BINARY)

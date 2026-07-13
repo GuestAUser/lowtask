@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`lowtask` is a local, single-user task manager for a Linux terminal. It should
+`lowtask` is a local, single-user task manager for Linux and macOS terminals. It should
 remain understandable as a small C program rather than grow into a general
 productivity platform.
 
@@ -19,6 +19,10 @@ values belong in the centralized TUI implementation and its regression tests.
   and keeping direct data flow over wrappers, frameworks, or generic layers.
 - Add an abstraction only when current code has a repeated boundary that the
   abstraction makes easier to verify. Do not build extension points in advance.
+- Keep each C source or header at no more than 250 pure lines of code, excluding
+  blank and comment-only lines. A rare indivisible exception requires
+  `SIZE_OK: <nonempty rationale>` inside a comment within the first five physical
+  lines so the reason remains visible and mechanically enforceable.
 - Keep ownership visible: core state, input decoding, terminal integration,
   rendering, and runtime orchestration have distinct responsibilities.
 - Choose the smallest complete fix at the root of a problem. Avoid a local
@@ -84,9 +88,15 @@ even when they are individually well implemented.
 
 ## Portability and dependencies
 
-- The implementation targets C17 plus the documented POSIX and Linux terminal
-  interfaces. It must build cleanly under the repository's strict GCC and Clang
-  settings.
+- The implementation targets C17 plus the documented POSIX terminal interfaces
+  on Linux and macOS. It must build cleanly under the repository's strict GCC
+  and Clang settings.
+- Distribution uses each platform's native binary tooling: `objcopy` embeds the
+  SVG in Linux ELF binaries, while `ld -sectcreate` embeds it in macOS Mach-O
+  binaries. Freedesktop launcher assets remain Linux-only.
+- Test deadlines are enforced by the repository's C supervisor, not a
+  platform-specific timeout utility. It owns an isolated process group, uses a
+  monotonic clock, forwards caller termination, and reaps after group cleanup.
 - The application has zero runtime library dependencies. Raw ANSI, `termios`,
   `poll`, monotonic time, and signals are deliberate constraints.
 - Avoid compiler extensions, undefined behavior, locale assumptions, and hidden

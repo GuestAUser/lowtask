@@ -38,10 +38,18 @@ Build and run the regression suite with:
 ```sh
 make clean && make CC=gcc all test
 make clean && make CC=clang all test
+make check-source-size
+./tests/test_install.sh
 ```
 
-CI runs the suite with both GCC and Clang. Before submitting changes to parsing,
-persistence, terminal handling, input, or other memory-sensitive code, also run:
+CI builds, tests, and verifies installation on Linux with GCC and Clang and on
+the `macos-15` runner with Apple Clang. `make test` builds the portable C timeout
+supervisor; `./tests/test_install.sh` also verifies its status and process-group
+cleanup contracts. `make check-source-size` runs the checker regressions and
+then enforces the 250-pure-LOC limit across the tree; any `SIZE_OK` exception
+needs a nonempty rationale in a comment within the first five physical lines.
+Before submitting changes to parsing, persistence, terminal
+handling, input, or other memory-sensitive code, also run:
 
 ```sh
 make sanitize

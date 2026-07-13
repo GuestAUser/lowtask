@@ -33,3 +33,10 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - name: Run GCC sanitizers
         run: make sanitize
+
+  macos-build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Build, test, and verify installation
+        run: make CC=clang all test && ./tests/test_install.sh
