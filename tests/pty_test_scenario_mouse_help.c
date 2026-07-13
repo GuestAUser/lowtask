@@ -38,7 +38,7 @@ bool scenario_mouse_help_modal(void) {
           mouse_click(&session, urgent_x + 2U, urgent_y) &&
           session_wait(&session, "priority changed", SESSION_DEADLINE_MS),
           "picker same-option release failed");
-    CHECK(session_send(&session, "p") && session_wait(&session, "High [3]", SESSION_DEADLINE_MS),
+    CHECK(session_send(&session, "p") && session_wait(&session, "Low [1]", SESSION_DEADLINE_MS),
           "priority picker reopen failed");
     size_t high_x = 0U, high_y = 0U, normal_x = 0U, normal_y = 0U;
     CHECK(screen_find_ascii(&session.screen, "High [3]", &high_x, &high_y) &&
