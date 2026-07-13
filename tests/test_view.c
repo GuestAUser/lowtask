@@ -51,15 +51,45 @@ static bool screen_has_foreground(const Renderer *renderer, uint32_t foreground)
     return false;
 }
 
-static uint64_t screen_hash(const Renderer *renderer) {
-    const unsigned char *bytes = (const unsigned char *)renderer->back;
-    const size_t length = renderer->width * renderer->height * sizeof(*renderer->back);
-    uint64_t hash = 1469598103934665603ULL;
+static void hash_bytes(uint64_t *hash, const void *value, size_t length) {
+    const unsigned char *bytes = value;
     for (size_t index = 0U; index < length; ++index) {
-        hash ^= bytes[index];
-        hash *= 1099511628211ULL;
+        *hash ^= bytes[index];
+        *hash *= 1099511628211ULL;
+    }
+}
+
+static uint64_t screen_hash(const Renderer *renderer) {
+    uint64_t hash = 1469598103934665603ULL;
+    const size_t count = renderer->width * renderer->height;
+
+    for (size_t index = 0U; index < count; ++index) {
+        const RendererCell *cell = &renderer->back[index];
+
+        hash_bytes(&hash, cell->glyph, sizeof(cell->glyph));
+        hash_bytes(&hash, &cell->foreground, sizeof(cell->foreground));
+        hash_bytes(&hash, &cell->background, sizeof(cell->background));
+        hash_bytes(&hash, &cell->glyph_length, sizeof(cell->glyph_length));
+        hash_bytes(&hash, &cell->width, sizeof(cell->width));
+        hash_bytes(&hash, &cell->attributes, sizeof(cell->attributes));
     }
     return hash;
+}
+
+static void test_screen_hash_ignores_renderer_cell_padding(void) {
+    RendererCell cell = {
+        .glyph = "x", .foreground = 1U, .background = 2U,
+        .glyph_length = 1U, .width = 1U, .attributes = RENDER_ATTR_BOLD,
+    };
+
+    Renderer renderer = {.width = 1U, .height = 1U, .back = &cell};
+    const uint64_t before = screen_hash(&renderer);
+
+    if (sizeof(cell.glyph) < offsetof(RendererCell, foreground)) {
+        unsigned char *representation = (unsigned char *)&cell;
+        representation[sizeof(cell.glyph)] = 0xa5U;
+        assert(screen_hash(&renderer) == before);
+    }
 }
 
 static size_t glyph_x(const Renderer *renderer, size_t row, const char *glyph) {
@@ -834,23 +864,29 @@ static void test_todo7_groups_pickers_and_help_overlay(void) {
 static void test_help_wide_columns_balance_shared_scroll(void) {
     TaskList tasks;
     task_list_init(&tasks);
+
     AppState state;
     assert(app_state_init(&state, &tasks));
     state.mode = APP_MODE_HELP;
+
     Renderer renderer;
     assert(renderer_init(&renderer, 96U, 24U, true));
+
     TuiViewState view = {
         .app = &state, .panel_progress = 1.0F, .mode = TUI_MODE_HELP,
         .status = state.status,
     };
+
     size_t lines = 0U;
     size_t page_rows = 0U;
     tui_help_metrics(96U, 24U, false, &lines, &page_rows);
     assert(lines > page_rows);
     app_state_set_help_metrics(&state, lines, page_rows);
+
     TuiLayout layout;
     assert(tui_layout_compute(96U, 24U, &view, &layout));
     assert(layout.help_body.height == page_rows);
+
     const size_t column_width = (layout.help_body.width - 3U) / 2U;
     const size_t right_column = layout.help_body.x + column_width + 3U;
     static const char *wide_titles[] = {
@@ -860,16 +896,20 @@ static void test_help_wide_columns_balance_shared_scroll(void) {
     };
     size_t title_rows[sizeof(wide_titles) / sizeof(wide_titles[0])];
     bool title_right[sizeof(wide_titles) / sizeof(wide_titles[0])] = {false};
+
     for (size_t index = 0U; index < sizeof(title_rows) / sizeof(title_rows[0]); ++index) {
         title_rows[index] = SIZE_MAX;
     }
+
     for (size_t scroll = 0U; scroll <= lines - page_rows; ++scroll) {
         state.help_scroll = scroll;
         tui_draw(&renderer, &tasks, &view);
+
         for (size_t index = 0U; index < sizeof(wide_titles) / sizeof(wide_titles[0]); ++index) {
             const size_t left_row = text_row_at(&renderer, layout.help_body.x, wide_titles[index]);
             const size_t right_row = text_row_at(&renderer, right_column, wide_titles[index]);
             assert(left_row == SIZE_MAX || right_row == SIZE_MAX);
+
             const bool right = left_row == SIZE_MAX;
             const size_t row = right ? right_row : left_row;
             if (title_rows[index] == SIZE_MAX && row != SIZE_MAX) {
@@ -881,10 +921,16 @@ static void test_help_wide_columns_balance_shared_scroll(void) {
     for (size_t index = 0U; index < sizeof(title_rows) / sizeof(title_rows[0]); ++index) {
         assert(title_rows[index] != SIZE_MAX);
     }
+
     size_t split = 0U;
-    while (split < sizeof(title_right) / sizeof(title_right[0]) && !title_right[split]) ++split;
+    while (split < sizeof(title_right) / sizeof(title_right[0]) && !title_right[split]) {
+        ++split;
+    }
+
     assert(split > 0U && split < sizeof(title_right) / sizeof(title_right[0]));
-    for (size_t index = 0U; index < split; ++index) assert(!title_right[index]);
+    for (size_t index = 0U; index < split; ++index) {
+        assert(!title_right[index]);
+    }
     for (size_t index = split; index < sizeof(title_right) / sizeof(title_right[0]); ++index) {
         assert(title_right[index]);
     }
@@ -914,8 +960,10 @@ static void test_help_wide_columns_balance_shared_scroll(void) {
     for (size_t index = 0U; index < sizeof(scrolls) / sizeof(scrolls[0]); ++index) {
         state.help_scroll = scrolls[index];
         tui_draw(&renderer, &tasks, &view);
+
         assert(region_has_text(&renderer, left_region));
         assert(region_has_text(&renderer, right_region));
+
         const size_t last = state.help_scroll + page_rows < lines ?
                             state.help_scroll + page_rows : lines;
         (void)snprintf(footer, sizeof(footer), "HELP %zu-%zu/%zu",
@@ -924,15 +972,18 @@ static void test_help_wide_columns_balance_shared_scroll(void) {
     }
 
     static const size_t single_column_widths[] = {64U, 24U};
+
     for (size_t index = 0U;
          index < sizeof(single_column_widths) / sizeof(single_column_widths[0]); ++index) {
         const size_t width = single_column_widths[index];
+
         assert(renderer_resize(&renderer, width, 24U));
         state.help_scroll = 0U;
         tui_help_metrics(width, 24U, false, &lines, &page_rows);
         app_state_set_help_metrics(&state, lines, page_rows);
         assert(tui_layout_compute(width, 24U, &view, &layout));
         tui_draw(&renderer, &tasks, &view);
+
         assert(text_row_at(&renderer, layout.help_body.x, "Navigation and views") ==
                layout.help_body.y);
         assert(text_row_at(&renderer, layout.help_body.x, "Schedule and due state") ==
@@ -1011,6 +1062,7 @@ static void test_todo7_drag_visuals_and_display_row_scroll(void) {
 }
 
 int main(void) {
+    test_screen_hash_ignores_renderer_cell_padding();
     test_matrix_tabs_dates_and_hits();
     test_responsive_fallbacks_and_dates();
     test_hit_padding_empty_add_and_pointer_precedence();
