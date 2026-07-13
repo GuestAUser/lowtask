@@ -22,8 +22,8 @@ bool child_poll_status(Child *child) {
 
 bool stat_mtime_equal(const struct stat *left, const struct stat *right) {
 #if defined(__APPLE__)
-    return left->st_mtime == right->st_mtime &&
-           left->st_mtimensec == right->st_mtimensec;
+    return left->st_mtimespec.tv_sec == right->st_mtimespec.tv_sec &&
+           left->st_mtimespec.tv_nsec == right->st_mtimespec.tv_nsec;
 #else
     return left->st_mtim.tv_sec == right->st_mtim.tv_sec &&
            left->st_mtim.tv_nsec == right->st_mtim.tv_nsec;
