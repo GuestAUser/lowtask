@@ -55,7 +55,8 @@ bool scenario_drag_normal(void) {
     offset = session.transcript.length;
     CHECK(mouse_event(&session, 0U, source_x + 8U, source_y, 'M') &&
           mouse_event(&session, 32U, target_x + 2U, target_y, 'M') &&
-          wait_transcript_since(&session, offset, "DRAG", SESSION_DEADLINE_MS),
+          wait_transcript_since(&session, offset, "DRAG", SESSION_DEADLINE_MS) &&
+          session_settle(&session, 180),
           "changed-target press/motion failed");
     size_t today_x = 0U, today_y = 0U;
     CHECK(screen_find_ascii(&session.screen, "TODAY", &today_x, &today_y) &&
