@@ -56,8 +56,12 @@ case $darwin_install_plan in
 esac
 
 case $darwin_install_plan in
-    *'-sectcreate __TEXT __lowtask_icon'*) ;;
-    *) fail 'Darwin build plan does not embed the SVG with ld' ;;
+    *'-Wl,-sectcreate,__TEXT,__lowtask_icon,'*) ;;
+    *) fail 'Darwin build plan does not embed the SVG through the compiler driver' ;;
+esac
+
+case $darwin_install_plan in
+    *'ld -r -sectcreate'*) fail 'Darwin build plan invokes raw relocatable ld' ;;
 esac
 
 case $darwin_install_plan in

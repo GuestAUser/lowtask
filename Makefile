@@ -1,5 +1,4 @@
 CC ?= cc
-LD ?= ld
 OBJCOPY ?= objcopy
 PREFIX ?= /usr/local
 unexport PREFIX DESTDIR
@@ -59,10 +58,10 @@ APP_OBJECTS := $(APP_SOURCES:%.c=build/%.o)
 APP_DEPS := $(APP_OBJECTS:.o=.d)
 APP_ICON := assets/lowtask-mark.svg
 APP_LINK_OBJECTS := $(APP_OBJECTS)
+APP_ICON_LDFLAGS :=
 
 ifeq ($(HOST_OS_LITERAL),Darwin)
-APP_ICON_OBJECT := build/assets/lowtask-icon.o
-APP_LINK_OBJECTS += $(APP_ICON_OBJECT)
+APP_ICON_LDFLAGS := -Wl,-sectcreate,__TEXT,__lowtask_icon,$(APP_ICON)
 endif
 
 TEST_CORE_SOURCES := tests/test_core.c core/date.c core/task.c
@@ -171,16 +170,12 @@ SANITIZE_LDFLAGS := -fno-omit-frame-pointer -fno-sanitize-recover=all \
 all: lowtask
 
 lowtask: $(APP_LINK_OBJECTS) $(APP_ICON)
-	$(CC) $(LDFLAGS) $(APP_LINK_OBJECTS) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(APP_LINK_OBJECTS) $(APP_ICON_LDFLAGS) $(LDLIBS) -o $@
 
 ifeq ($(HOST_OS_LITERAL),Linux)
 	$(OBJCOPY) --add-section .lowtask.icon=$(APP_ICON) \
 		--set-section-flags .lowtask.icon=contents,readonly $@
 endif
-
-build/assets/lowtask-icon.o: $(APP_ICON)
-	@mkdir -p $(dir $@)
-	$(LD) -r -sectcreate __TEXT __lowtask_icon $< -o $@
 
 install uninstall: export LOWTASK_PROJECT_DIR := $(CURDIR)
 install uninstall: export LOWTASK_PREFIX := $(value PREFIX)
