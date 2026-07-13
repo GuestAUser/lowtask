@@ -105,6 +105,7 @@ static void restore_terminal(void) {
     }
     static const char leave[] =
         "\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l";
+    /* Restore input modes first; visual cleanup is bounded best effort on a slow output fd. */
     (void)tcsetattr(restore_state.input_fd, TCSAFLUSH, &restore_state.original);
     (void)write_all(restore_state.output_fd, leave, sizeof(leave) - 1U);
     (void)fcntl(restore_state.output_fd, F_SETFL, restore_state.output_flags);
@@ -184,6 +185,7 @@ void terminal_close(Terminal *terminal) {
 }
 
 static void signal_handler(int signal_number) {
+    /* Handlers only set sig_atomic_t flags; cleanup and resizing remain in the main loop. */
     if (signal_number == SIGWINCH) {
         resize_requested = 1;
     } else {

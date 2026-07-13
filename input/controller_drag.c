@@ -41,6 +41,7 @@ static const char *tab_drop_status(AppTab tab) {
 }
 
 static void apply_drag_drop(AppState *state, AppTab target) {
+    /* Rows can move during a drag, so only the ID captured at press remains task identity. */
     const uint64_t task_id = state->drag_task_id;
     Task *task = task_list_get(state->tasks, task_id);
     if (task == NULL) {
@@ -92,6 +93,7 @@ static void apply_drag_drop(AppState *state, AppTab target) {
             mutated = true;
         }
     }
+    /* Rebuild after all mutations, then reselect by ID before publishing move feedback. */
     const AppTab previous = state->tab;
     state->tab = target;
     controller_drag_clear(state, true);

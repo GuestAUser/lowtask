@@ -7,9 +7,6 @@
 *.gcno
 *.profraw
 
-# Local execution and planning state
-/.omo/
-
 # Tooling and editor state
 /compile_commands.json
 .cache/

@@ -9,6 +9,7 @@ restart:
     const unsigned char first = decoder->pending[0];
     *event = (InputEvent){.type = INPUT_KEY_NONE};
     if (first == 0x1bU) {
+        /* Hold ambiguous escape prefixes until completion or the runtime's bounded flush deadline. */
         if (decoder->length == 1U && !flushing) return false;
         if (decoder->length >= 2U && (decoder->pending[1] == '[' || decoder->pending[1] == 'O')) {
             if (decoder->length < 3U && !flushing) return false;
@@ -93,6 +94,7 @@ restart:
     if (!valid || (count == 3U && codepoint < 0x800U) ||
         (count == 4U && codepoint < 0x10000U) ||
         (codepoint >= 0xd800U && codepoint <= 0xdfffU) || codepoint > 0x10ffffU) {
+        /* One-byte recovery preserves the next byte as a possible valid sequence boundary. */
         event->type = INPUT_KEY_CHARACTER;
         event->codepoint = 0xfffdU;
         input_decoder_consume(decoder, 1U);
@@ -119,6 +121,7 @@ size_t input_decoder_feed(InputDecoder *decoder, const unsigned char *bytes, siz
     if (decoder == NULL || (length > 0U && bytes == NULL) ||
         (event_capacity > 0U && events == NULL)) return 0U;
     size_t event_count = 0U;
+    /* Invalid controls discard through their final byte so payload cannot reappear as text. */
     for (size_t index = 0U; index < length; ++index) {
         if (decoder->discarding_control_sequence) {
             if (input_control_final(bytes[index])) decoder->discarding_control_sequence = false;

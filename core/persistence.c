@@ -106,6 +106,7 @@ bool persistence_lock(const char *path, int *lock_fd, char *error, size_t error_
         set_error(error, error_size, "state lock path is too long");
         return false;
     }
+    /* Refuse symlink and non-regular lock targets so advisory locking stays on our own file. */
     const int descriptor = open(lock_path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
     if (descriptor < 0) {
         set_error(error, error_size, "cannot open state lock: %s", strerror(errno));
@@ -190,6 +191,7 @@ bool persistence_save(const char *path, const TaskList *list, char *error, size_
     FILE *file = fdopen(descriptor, "wb");
     bool ok = file != NULL;
     if (ok) {
+        /* Flush and fsync temporary contents before rename, then fsync the parent to commit its name. */
         ok = persistence_format_write(file, list) && fflush(file) == 0 && fsync_retry(descriptor);
         if (fclose(file) != 0) {
             ok = false;

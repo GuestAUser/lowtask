@@ -99,6 +99,7 @@ int main(void) {
 
     app_state_finish_pending_delete(&state);
     renderer_free(&renderer);
+    /* Restore terminal usability before a final save can block or fail on filesystem I/O. */
     terminal_close(&terminal);
     bool save_error_reported = false;
     if (state.dirty) {
@@ -111,6 +112,7 @@ int main(void) {
         (void)sigaddset(&blocked_signals, SIGTERM);
         (void)sigaddset(&blocked_signals, SIGHUP);
         (void)sigaddset(&blocked_signals, SIGQUIT);
+        /* Keep termination signal delivery out of the final save's durability sequence. */
         const bool signals_blocked = sigprocmask(SIG_BLOCK, &blocked_signals, &previous_signals) == 0;
         if (!save_if_needed(&state, state_path, &save_blocked)) {
             (void)fprintf(stderr, "lowtask: %s\n", state.status);

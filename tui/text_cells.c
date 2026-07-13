@@ -105,6 +105,7 @@ void renderer_put_utf8(Renderer *renderer, size_t x, size_t y, const char *text,
         const size_t byte_count = decode_utf8(cursor, &codepoint);
         const unsigned width = renderer_codepoint_width(codepoint);
         if (width == 0U) {
+            /* Zero-width code points belong to the prior cell; excess bytes never claim geometry. */
             if (cluster != NULL && cluster->glyph_length + byte_count < sizeof(cluster->glyph)) {
                 memcpy(cluster->glyph + cluster->glyph_length, cursor, byte_count);
                 cluster->glyph_length = (uint8_t)(cluster->glyph_length + byte_count);
@@ -126,6 +127,7 @@ void renderer_put_utf8(Renderer *renderer, size_t x, size_t y, const char *text,
         cell->glyph[byte_count] = '\0';
         cluster = cell;
         if (width == 2U) {
+            /* The lead cell owns the glyph; a width-zero sentinel protects its second column. */
             RendererCell *continuation = cell + 1;
             *continuation = (RendererCell){
                 .foreground = style.foreground, .background = style.background,

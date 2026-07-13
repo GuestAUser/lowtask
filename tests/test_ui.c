@@ -111,7 +111,7 @@ static void test_color_modes(void) {
 }
 
 static void test_palette_tokens(void) {
-    /* Keep one exhaustive contract for the palette documented in DESIGN.md. */
+    /* Pin every token together so palette changes stay deliberate and reviewable. */
     static const struct {
         uint32_t rgb;
         unsigned xterm;

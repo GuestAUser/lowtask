@@ -143,6 +143,7 @@ static void handle_event(AppRuntime *runtime, InputEvent event) {
 }
 
 static int poll_timeout(const AppRuntime *runtime, bool needs_frame, double next_frame) {
+    /* Incomplete input prefixes need a short deadline; otherwise the loop may sleep indefinitely. */
     if (runtime->decoder.length > 0U || runtime->decoder.discarding_control_sequence) return 25;
     if (!needs_frame && !is_animating(runtime)) return 250;
     const double remaining = next_frame - terminal_monotonic_seconds();
@@ -178,6 +179,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             retarget_scroll(&runtime, visible_rows(&runtime));
             needs_frame = true;
         }
+        /* Monotonic elapsed time skips missed intermediate frames instead of accumulating lag. */
         if ((needs_frame || is_animating(&runtime)) && now >= next_frame) {
             float delta = (float)(now - previous);
             if (delta < 0.0F) delta = 0.0F;
@@ -195,6 +197,7 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             needs_frame = renderer_has_pending_output(renderer);
         }
 
+        /* The renderer retains partial frames; POLLOUT merely re-arms its bounded drain path. */
         struct pollfd descriptors[2] = {
             {.fd = terminal->input_fd, .events = POLLIN},
             {.fd = terminal->output_fd,
