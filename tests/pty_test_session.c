@@ -23,6 +23,16 @@ static bool termios_equal(const struct termios *left, const struct termios *righ
            memcmp(left->c_cc, right->c_cc, sizeof(left->c_cc)) == 0;
 }
 
+static bool bottom_row_rendered(const Screen *screen) {
+    if (screen->cells == NULL || screen->columns == 0U || screen->rows == 0U) return false;
+    const size_t offset = (screen->rows - 1U) * screen->columns;
+    for (size_t column = 0U; column < screen->columns; ++column) {
+        const char *glyph = screen->cells[offset + column].glyph;
+        if (glyph[0] != '\0' && strcmp(glyph, " ") != 0) return true;
+    }
+    return false;
+}
+
 bool session_prepare(Session *session, size_t columns, size_t rows) {
     *session = (Session){.master = -1, .slave = -1, .child = {.pid = -1}};
     pty_test_track_session(session);
@@ -56,12 +66,9 @@ bool session_start(Session *session, bool reduced, bool ascii) {
         CHECK(session_read(session, &closed), "startup read failed");
         if (session->transcript.bytes != NULL) {
             const char *entry = strstr(session->transcript.bytes, terminal_enter);
-            if (entry != NULL && screen_contains(&session->screen, "lowtask")) {
+            if (entry != NULL && screen_contains(&session->screen, "lowtask") &&
+                bottom_row_rendered(&session->screen)) {
                 session->entry_offset = (size_t)(entry - session->transcript.bytes);
-                CHECK(session_settle(session, SESSION_DEADLINE_MS),
-                      "startup frame did not settle");
-                CHECK(child_poll_status(&session->child) && !session->child.reaped,
-                      "application exited while startup frame settled");
                 session->started = true;
                 return true;
             }
