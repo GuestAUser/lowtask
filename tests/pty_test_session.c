@@ -58,6 +58,10 @@ bool session_start(Session *session, bool reduced, bool ascii) {
             const char *entry = strstr(session->transcript.bytes, terminal_enter);
             if (entry != NULL && screen_contains(&session->screen, "lowtask")) {
                 session->entry_offset = (size_t)(entry - session->transcript.bytes);
+                CHECK(session_settle(session, SESSION_DEADLINE_MS),
+                      "startup frame did not settle");
+                CHECK(child_poll_status(&session->child) && !session->child.reaped,
+                      "application exited while startup frame settled");
                 session->started = true;
                 return true;
             }
