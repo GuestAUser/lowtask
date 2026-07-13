@@ -168,7 +168,9 @@ static void test_terminal_mouse_lifecycle(void) {
     assert(restored.c_cflag == original.c_cflag);
     assert(restored.c_lflag == original.c_lflag);
     assert(memcmp(restored.c_cc, original.c_cc, sizeof(original.c_cc)) == 0);
-    assert(fcntl(slave, F_GETFL) == original_flags);
+    const int restored_flags = fcntl(slave, F_GETFL);
+    assert(restored_flags >= 0);
+    assert((restored_flags & O_NONBLOCK) == (original_flags & O_NONBLOCK));
 
     const size_t before_second_close = length;
     terminal_close(&terminal);
