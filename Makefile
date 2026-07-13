@@ -1,4 +1,11 @@
 CC ?= cc
+OBJCOPY ?= objcopy
+INSTALL ?= install
+PREFIX ?= /usr/local
+BINDIR ?= $(PREFIX)/bin
+DATADIR ?= $(PREFIX)/share
+ICONDIR ?= $(DATADIR)/icons/hicolor/scalable/apps
+APPLICATIONSDIR ?= $(DATADIR)/applications
 CPPFLAGS ?= -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -I.
 CFLAGS ?= -O2 -std=c17 -Wall -Wextra -Werror -Wpedantic
 LDFLAGS ?=
@@ -40,6 +47,8 @@ APP_SOURCES := \
 	tui/view.c
 APP_OBJECTS := $(APP_SOURCES:%.c=build/%.o)
 APP_DEPS := $(APP_OBJECTS:.o=.d)
+APP_ICON := assets/lowtask-mark.svg
+APP_DESKTOP := assets/lowtask.desktop
 
 TEST_CORE_SOURCES := tests/test_core.c core/date.c core/task.c
 TEST_PERSISTENCE_SOURCES := tests/test_persistence.c core/date.c core/task.c core/persistence.c \
@@ -99,12 +108,26 @@ SANITIZE_CFLAGS := -O1 -g3 -std=c17 -Wall -Wextra -Werror -Wpedantic -UNDEBUG \
 SANITIZE_LDFLAGS := -fno-omit-frame-pointer -fno-sanitize-recover=all \
 	-fsanitize=address,undefined
 
-.PHONY: all clean test perf-record perf-gate perf-record-run perf-gate-run sanitize
+.PHONY: all clean install uninstall test perf-record perf-gate perf-record-run perf-gate-run sanitize
 
 all: lowtask
 
-lowtask: $(APP_OBJECTS)
-	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+lowtask: $(APP_OBJECTS) $(APP_ICON)
+	$(CC) $(LDFLAGS) $(APP_OBJECTS) $(LDLIBS) -o $@
+	$(OBJCOPY) --add-section .lowtask.icon=$(APP_ICON) \
+		--set-section-flags .lowtask.icon=contents,readonly $@
+
+install: lowtask $(APP_DESKTOP)
+	$(INSTALL) -d "$(DESTDIR)$(BINDIR)" "$(DESTDIR)$(ICONDIR)" \
+		"$(DESTDIR)$(APPLICATIONSDIR)"
+	$(INSTALL) -m 0755 lowtask "$(DESTDIR)$(BINDIR)/lowtask"
+	$(INSTALL) -m 0644 $(APP_ICON) "$(DESTDIR)$(ICONDIR)/lowtask.svg"
+	$(INSTALL) -m 0644 $(APP_DESKTOP) "$(DESTDIR)$(APPLICATIONSDIR)/lowtask.desktop"
+
+uninstall:
+	rm -f -- "$(DESTDIR)$(BINDIR)/lowtask" \
+		"$(DESTDIR)$(ICONDIR)/lowtask.svg" \
+		"$(DESTDIR)$(APPLICATIONSDIR)/lowtask.desktop"
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=lowtask
+GenericName=Task Manager
+Comment=Fast terminal task manager
+Exec=lowtask
+Icon=lowtask
+Terminal=true
+Categories=Utility;
+Keywords=tasks;todo;terminal;

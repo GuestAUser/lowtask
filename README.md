@@ -16,7 +16,16 @@ make
 ./lowtask
 ```
 
-Run the regression suite with `make test` and remove generated files with `make clean`. The project targets **C17**: it keeps the implementation within a stable, broadly supported ISO C baseline while allowing current GCC and Clang on Arch to enforce strict diagnostics. The default build uses `-Wall -Wextra -Werror -Wpedantic`, `_POSIX_C_SOURCE=200809L`, and `_DEFAULT_SOURCE`.
+Install `lowtask` as a system-wide command, including its terminal launcher and icon, with:
+
+```sh
+make && sudo ./install.sh
+lowtask
+```
+
+Use `sudo ./install.sh --uninstall` to remove it. For a user-local installation, run `./install.sh --prefix "$HOME/.local"` and ensure `$HOME/.local/bin` is in `PATH`. The SVG mark is embedded in the ELF executable as `.lowtask.icon`; Linux launchers use the separately installed icon and `lowtask.desktop` metadata because ELF has no standard launcher-icon field.
+
+Run the regression suite with `make test`, verify installation behavior with `./tests/test_install.sh`, and remove generated files with `make clean`. The project targets **C17**: it keeps the implementation within a stable, broadly supported ISO C baseline while allowing current GCC and Clang on Arch to enforce strict diagnostics. The default build uses `-Wall -Wextra -Werror -Wpedantic`, `_POSIX_C_SOURCE=200809L`, and `_DEFAULT_SOURCE`.
 
 `lowtask` intentionally has no runtime library or package dependency: it does not link ncurses, notcurses, or libutil. Raw ANSI sequences provide frame and color control. Truecolor is detected through `truecolor`/`24bit` in `$COLORTERM` or `direct` in `$TERM`; otherwise the semantic xterm-256 palette is emitted. Unicode rendering requires a UTF-8 locale and a non-`dumb` terminal. Set `LOWTASK_ASCII=1` to force ASCII borders, controls, priorities, completion marks, and drag cues. Set `LOWTASK_REDUCE_MOTION=1` to apply final interaction states immediately while preserving every result and status message.
 
@@ -114,6 +123,18 @@ The loop caps animated work at 60 FPS and derives all motion from monotonic delt
 Each frame is drawn into a reusable back-cell buffer. `renderer_present` compares it with the previous buffer, groups adjacent changed cells with the same style, and emits cursor/color/glyph sequences only for those runs. Idle frames produce no terminal writes, and the loop blocks in `poll` when no animation is active.
 
 Terminal output is nonblocking; partial frames are queued and resumed through `POLLOUT` instead of turning temporary backpressure into an application failure. Terminal settings are restored before bounded best-effort visual cleanup and before final persistence I/O. Raw mode and xterm mouse modes (`1000`, `1002`, `1003`, and `1006`) are restored on normal exit, EOF/HUP, output failures, `SIGINT`, `SIGTERM`, `SIGHUP`, and `SIGQUIT`; `SIGWINCH` triggers a safe resize on the main loop. As with any terminal application, `SIGKILL`, `SIGSTOP`, unrecoverable memory corruption, or uninterruptible kernel I/O cannot guarantee cleanup; `reset` or `stty sane` restores a terminal after such an external failure.
+
+## Open source
+
+`lowtask` is licensed under the [MIT License](LICENSE). Its [engineering philosophy](DESIGN.md) defines the scope and quality bar for changes. The canonical upstream is [GuestAUser/lowtask](https://github.com/GuestAUser/lowtask); the repository is currently private and not publicly accessible.
+
+## Contributing
+
+Read the [contribution guide](CONTRIBUTING.md) and [engineering philosophy](DESIGN.md) before proposing a change.
+
+## Security
+
+Report vulnerabilities privately by following the [security policy](SECURITY.md). Do not disclose exploit details in a public issue.
 
 ## Author
 
