@@ -15,6 +15,12 @@ HOST_OS := $(shell uname -s)
 endif
 unexport HOST_OS
 HOST_OS_LITERAL := $(value HOST_OS)
+PLATFORM_CPPFLAGS :=
+
+ifeq ($(HOST_OS_LITERAL),Darwin)
+PLATFORM_CPPFLAGS := -D_DARWIN_C_SOURCE
+endif
+
 TIMEOUT_SUPERVISOR := build/timeout-supervisor
 TIMEOUT_RUNNER := ./$(TIMEOUT_SUPERVISOR)
 
@@ -189,19 +195,19 @@ uninstall:
 
 $(TIMEOUT_SUPERVISOR): scripts/timeout-supervisor.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
+	$(CC) $(CPPFLAGS) $(PLATFORM_CPPFLAGS) $(CFLAGS) $< -o $@
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
+	$(CC) $(CPPFLAGS) $(PLATFORM_CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 build/test-objects/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
+	$(CC) $(CPPFLAGS) $(PLATFORM_CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
 
 build/performance-objects/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
+	$(CC) $(CPPFLAGS) $(PLATFORM_CPPFLAGS) $(TEST_CFLAGS) -MMD -MP -c $< -o $@
 
 check-source-size:
 	sh tests/test_source_size.sh

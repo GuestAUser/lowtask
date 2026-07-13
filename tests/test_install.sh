@@ -74,6 +74,11 @@ case $darwin_test_plan in
     *) fail 'Darwin test plan has no portable timeout runner' ;;
 esac
 
+case $darwin_test_plan in
+    *'-D_DARWIN_C_SOURCE'*) ;;
+    *) fail 'Darwin test plan does not expose required platform interfaces' ;;
+esac
+
 make -C "$project_dir" build/timeout-supervisor
 
 expect_status 0 "$timeout_supervisor" 1s TERM 1s sh -c 'exit 0'
