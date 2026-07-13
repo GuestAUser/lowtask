@@ -107,16 +107,16 @@ static bool signal_group(pid_t group, int signal_number)
     return false;
 }
 
-static int child_state(pid_t child)
+static int child_state(pid_t child, int *status)
 {
-    siginfo_t information;
+    pid_t waited;
 
-    memset(&information, 0, sizeof(information));
-    if (waitid(P_PID, (id_t)child, &information, WEXITED | WNOHANG | WNOWAIT) < 0) {
-        return errno == EINTR ? 0 : -1;
-    }
+    do {
+        waited = waitpid(child, status, WNOHANG);
+    } while (waited < 0 && errno == EINTR);
 
-    return information.si_pid == child ? 1 : 0;
+    if (waited < 0) return -1;
+    return waited == child ? 1 : 0;
 }
 
 static int command_status(int status)
@@ -131,19 +131,9 @@ static int command_status(int status)
     return 125;
 }
 
-static int finish_child(pid_t child, enum outcome outcome, int interruption)
+static int finish_child(pid_t child, int status, enum outcome outcome, int interruption)
 {
-    int status;
-    bool cleanup_succeeded;
-    pid_t waited;
-
-    cleanup_succeeded = signal_group(child, SIGKILL);
-    do {
-        waited = waitpid(child, &status, 0);
-    } while (waited < 0 && errno == EINTR);
-    if (!cleanup_succeeded || waited != child) {
-        return 125;
-    }
+    if (!signal_group(child, SIGKILL)) return 125;
 
     switch (outcome) {
     case OUTCOME_COMMAND:
@@ -176,6 +166,7 @@ static int supervise(pid_t child, struct timeout_config config)
     struct timespec deadline;
     enum outcome outcome = OUTCOME_COMMAND;
     int interruption = 0;
+    int status;
     int state;
 
     if (!monotonic_now(&now)) {
@@ -184,12 +175,12 @@ static int supervise(pid_t child, struct timeout_config config)
     deadline = deadline_after(now, config.timeout);
 
     for (;;) {
-        state = child_state(child);
+        state = child_state(child, &status);
         if (state < 0) {
             return supervisor_failure(child);
         }
         if (state > 0) {
-            return finish_child(child, outcome, interruption);
+            return finish_child(child, status, outcome, interruption);
         }
 
         if (caller_signal != 0 && outcome != OUTCOME_INTERRUPTED) {
