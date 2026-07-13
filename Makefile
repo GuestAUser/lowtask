@@ -26,6 +26,7 @@ TIMEOUT_RUNNER := ./$(TIMEOUT_SUPERVISOR)
 APP_SOURCES := \
 	main.c \
 	app/runtime.c \
+	app/runtime_input.c \
 	core/date.c \
 	core/task.c \
 	core/persistence.c \

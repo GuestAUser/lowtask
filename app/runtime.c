@@ -1,4 +1,5 @@
 #include "app/runtime.h"
+#include "app/runtime_input.h"
 
 #include "input/controller.h"
 #include "input/input.h"
@@ -21,6 +22,7 @@ typedef struct {
     InputDecoder decoder;
     Tween panel;
     Tween scroll;
+    double input_flush_deadline;
     bool reduced_motion;
 } AppRuntime;
 
@@ -142,15 +144,6 @@ static void handle_event(AppRuntime *runtime, InputEvent event) {
     }
 }
 
-static int poll_timeout(const AppRuntime *runtime, bool needs_frame, double next_frame) {
-    /* Incomplete input prefixes need a short deadline; otherwise the loop may sleep indefinitely. */
-    if (runtime->decoder.length > 0U || runtime->decoder.discarding_control_sequence) return 25;
-    if (!needs_frame && !is_animating(runtime)) return 250;
-    const double remaining = next_frame - terminal_monotonic_seconds();
-    int timeout = remaining <= 0.0 ? 0 : (int)(remaining * 1000.0 + 0.999);
-    return timeout > 17 ? 17 : timeout;
-}
-
 int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
     AppRuntime runtime = {
         .state = state,
@@ -204,8 +197,11 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
              .events = renderer_has_pending_output(renderer) ? POLLOUT : 0},
         };
         const nfds_t descriptor_count = descriptors[1].events == 0 ? 1U : 2U;
+        const double poll_now = terminal_monotonic_seconds();
+        const int timeout = runtime_poll_timeout(&runtime.decoder, runtime.input_flush_deadline,
+            needs_frame, is_animating(&runtime), next_frame, poll_now);
         const int poll_result = poll(descriptors, descriptor_count,
-                                     poll_timeout(&runtime, needs_frame, next_frame));
+                                     timeout);
         if (poll_result < 0) {
             if (errno == EINTR) continue;
             exit_code = 1;
@@ -235,6 +231,8 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             if (count > 0) {
                 event_count = input_decoder_feed(&runtime.decoder, bytes, (size_t)count,
                                                   events, sizeof(events) / sizeof(events[0]));
+                runtime.input_flush_deadline = runtime_input_deadline(
+                    &runtime.decoder, terminal_monotonic_seconds());
             } else if (count == 0) {
                 break;
             } else if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -243,10 +241,13 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             }
         } else if (poll_result > 0 && (input.revents & POLLHUP) != 0) {
             break;
-        } else if (poll_result == 0 &&
-                   (runtime.decoder.length > 0U || runtime.decoder.discarding_control_sequence)) {
+        }
+        if ((input.revents & POLLIN) == 0 && runtime_input_pending(&runtime.decoder) &&
+            terminal_monotonic_seconds() >= runtime.input_flush_deadline) {
             event_count = input_decoder_flush(&runtime.decoder, events,
                                                sizeof(events) / sizeof(events[0]));
+            runtime.input_flush_deadline = runtime_input_deadline(
+                &runtime.decoder, terminal_monotonic_seconds());
         }
         const AppEffect effect_before_events = state->effect;
         for (size_t index = 0U; index < event_count; ++index) {
