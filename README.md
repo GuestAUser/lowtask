@@ -4,7 +4,7 @@
   <img src="assets/lowtask-logo.svg" alt="lowtask terminal task operator" width="544">
 </p>
 
-`lowtask` is a fast, keyboard-and-mouse task manager with a zero-runtime-dependency animated terminal UI for Linux and macOS. Its Matrix-dark operator console provides four manual priorities, due dates, temporal views, priority filtering, deterministic sorts, stable task navigation, Help paging, and responsive layouts using raw ANSI output, `termios`, `poll`, `clock_gettime(CLOCK_MONOTONIC)`, and `SIGWINCH` directly.
+`lowtask` is a fast, keyboard-and-mouse task manager with an animated terminal UI for Linux and macOS. It has no runtime library or package dependencies and uses a minimal, high-contrast dark theme. It provides four manual priorities, due dates, temporal views, priority filtering, deterministic sorts, stable task navigation, Help paging, and responsive layouts. The interface uses raw ANSI output, `termios`, `poll`, `clock_gettime(CLOCK_MONOTONIC)`, and `SIGWINCH` directly.
 
 ## Build on Linux
 
@@ -143,7 +143,7 @@ Terminal output is nonblocking; partial frames are queued and resumed through `P
 
 ## Open source
 
-`lowtask` is licensed under the [MIT License](LICENSE). Its [engineering philosophy](DESIGN.md) defines the scope and quality bar for changes. The canonical upstream is [GuestAUser/lowtask](https://github.com/GuestAUser/lowtask); the repository is currently private and not publicly accessible.
+`lowtask` is licensed under the [MIT License](LICENSE). Its [engineering philosophy](DESIGN.md) defines the scope and quality bar for changes. The canonical upstream is [GuestAUser/lowtask](https://github.com/GuestAUser/lowtask).
 
 ## Contributing
 
