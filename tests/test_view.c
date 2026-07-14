@@ -349,8 +349,17 @@ static void test_hit_padding_empty_add_and_pointer_precedence(void) {
     assert(hit.kind == TUI_HIT_CHECK && hit.action.task_id == task_id);
     hit = tui_hit_test(96U, 16U, layout.rows.x + 4U, layout.rows.y, &view);
     assert(hit.kind == TUI_HIT_PRIORITY && hit.action.type == APP_ACTION_OPEN_PRIORITY_PICKER);
-    hit = tui_hit_test(96U, 16U, layout.rows.x + 6U, layout.rows.y, &view);
+    hit = tui_hit_test(96U, 16U, layout.rows.x + 5U, layout.rows.y, &view);
     assert(hit.kind == TUI_HIT_PRIORITY && hit.action.task_id == task_id);
+    size_t title_x = 0U;
+    size_t title_width = 0U;
+    tui_task_title_bounds(&view, &layout, task_id, 0U, &title_x, &title_width);
+    assert(title_width >= strlen("target"));
+    hit = tui_hit_test(96U, 16U, title_x, layout.rows.y, &view);
+    assert(hit.kind == TUI_HIT_TASK_TITLE && hit.action.type == APP_ACTION_EDIT_TASK);
+    assert(hit.action.task_id == task_id);
+    hit = tui_hit_test(96U, 16U, title_x + strlen("target"), layout.rows.y, &view);
+    assert(hit.kind == TUI_HIT_TASK && hit.action.type == APP_ACTION_SELECT_TASK);
 
     state.effect = APP_EFFECT_ADD;
     state.effect_task_id = task_id;

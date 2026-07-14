@@ -1,14 +1,30 @@
 #include "input/controller_text.h"
 
+#include "core/date.h"
 #include "input/controller_internal.h"
 #include "input/controller_modal.h"
 
 #include <string.h>
 
+static bool contextual_due_date(const AppState *state,
+                                char due_date[LOWTASK_DUE_DATE_LENGTH + 1U]) {
+    due_date[0] = '\0';
+    if (state->tab == APP_TAB_ALL || state->tab == APP_TAB_COMPLETED) return true;
+    if (state->tab != APP_TAB_TODAY && state->tab != APP_TAB_UPCOMING) return false;
+    if (state->today[0] == '\0' || !date_is_valid(state->today)) return false;
+    const unsigned int days = state->tab == APP_TAB_UPCOMING ? 1U : 0U;
+    return date_add_days(state->today, days, due_date);
+}
+
 void controller_text_enter_input(AppState *state, AppMode mode, uint64_t task_id) {
     const Task *task = task_id == 0U ? NULL : task_list_get_const(state->tasks, task_id);
     if (mode != APP_MODE_ADD && task == NULL) {
         controller_set_status(state, "task no longer exists");
+        return;
+    }
+    char due_date[LOWTASK_DUE_DATE_LENGTH + 1U];
+    if (mode == APP_MODE_ADD && !contextual_due_date(state, due_date)) {
+        controller_set_status(state, "date unavailable");
         return;
     }
     state->mode = mode;
@@ -101,30 +117,41 @@ void controller_text_submit(AppState *state) {
         return;
     }
     if (state->mode == APP_MODE_ADD) {
+        char due_date[LOWTASK_DUE_DATE_LENGTH + 1U];
+        if (!contextual_due_date(state, due_date)) {
+            controller_set_status(state, "date unavailable");
+            return;
+        }
         if (!app_state_reserve(state, state->tasks->length + 1U)) {
             controller_set_status(state, "unable to add task");
             return;
         }
         uint64_t task_id = 0U;
-        if (!task_list_add(state->tasks, state->input, TASK_PRIORITY_NORMAL, &task_id)) {
+        if (!task_list_add_configured(state->tasks, state->input, TASK_PRIORITY_NORMAL,
+                                      due_date, state->tab == APP_TAB_COMPLETED, &task_id)) {
             controller_set_status(state, "unable to add task");
             return;
         }
         state->dirty = true;
         controller_modal_reset(state);
-        state->tab = APP_TAB_ALL;
         if (!controller_refresh_mutation(state)) return;
         (void)app_state_select_task_id(state, task_id);
         controller_start_effect(state, APP_EFFECT_ADD, task_id, 0.28F);
         controller_set_status(state, "task added");
         return;
     }
-    if (task_list_get_const(state->tasks, state->modal_task_id) == NULL) {
+    const Task *task = task_list_get_const(state->tasks, state->modal_task_id);
+    if (task == NULL) {
         controller_modal_reset(state);
         controller_set_status(state, "task no longer exists");
         return;
     }
     const uint64_t task_id = state->modal_task_id;
+    if (strcmp(task->text, state->input) == 0) {
+        controller_modal_reset(state);
+        controller_set_status(state, "task unchanged");
+        return;
+    }
     if (!task_list_edit(state->tasks, task_id, state->input)) {
         controller_set_status(state, "unable to edit task");
         return;

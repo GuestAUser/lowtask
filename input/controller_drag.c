@@ -170,18 +170,17 @@ void controller_drag_track(AppState *state, AppAction action, InputEvent event) 
     state->hovered_action = state->drag_target_valid ? action : (AppAction){0};
 }
 
-void controller_drag_resolve_release(AppState *state, AppAction action, InputEvent event) {
+AppAction controller_drag_resolve_release(AppState *state, AppAction action, InputEvent event) {
     if (task_list_get_const(state->tasks, state->drag_task_id) == NULL) {
         controller_drag_cancel(state, "task no longer exists");
-        return;
+        return (AppAction){0};
     }
     controller_drag_track(state, action, event);
     if (!state->drag_active) {
-        const bool select = controller_action_equal(state->drag_source_action, action);
-        const uint64_t task_id = state->drag_task_id;
+        const AppAction click = controller_action_equal(state->drag_source_action, action) ?
+                                state->drag_source_action : (AppAction){0};
         controller_drag_clear(state, false);
-        if (select) (void)app_state_select_task_id(state, task_id);
-        return;
+        return click;
     }
     if (state->drag_target_valid) {
         apply_drag_drop(state, state->drag_target_tab);
@@ -192,4 +191,5 @@ void controller_drag_resolve_release(AppState *state, AppAction action, InputEve
     } else {
         controller_drag_cancel(state, "drag cancelled");
     }
+    return (AppAction){0};
 }

@@ -12,7 +12,8 @@ int main(void) {
         fputs("test_pty: FAIL: process preconditions\n", stderr);
         return 1;
     }
-    bool ok = scenario_keyboard_workflow() && scenario_mouse_help_modal() &&
+    bool ok = scenario_keyboard_workflow() && scenario_contextual_creation_and_title_edit() &&
+              scenario_mouse_help_modal() &&
               scenario_drag_normal() && scenario_reduced_narrow_and_signal() &&
               scenario_legacy("LOWTASK\t1\nNEXT\t2\nTASK\t1\t3\t0\t6c6567616379206f6e65\n",
                               "legacy one") &&
@@ -36,7 +37,7 @@ int main(void) {
            evidence->startup_hash, evidence->lift_hash, evidence->target_hash, evidence->success_hash,
            evidence->saw_drag ? "yes" : "no", evidence->saw_moved ? "yes" : "no",
            evidence->saw_urgent_256 ? "yes" : "no");
-    printf("test_pty: scenarios=keyboard,header-mouse,help,picker,modal,drag,animation,reduced,legacy-v1,legacy-v2,lock,signals bytes=%zu csi=%zu\n",
+    printf("test_pty: scenarios=keyboard,context-add,title-edit,header-mouse,help,picker,modal,drag,animation,reduced,legacy-v1,legacy-v2,lock,signals bytes=%zu csi=%zu\n",
            evidence->transcript_bytes, evidence->csi_count);
     puts("test_pty: geometry=96x24,24x8 resize=help,picker,drag split-sgr=yes malformed-sgr=yes");
     puts("test_pty: persistence=exact-v3 dynamic-dates=yes lock-unchanged=yes sigterm-save=yes");

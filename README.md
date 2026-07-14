@@ -56,8 +56,8 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `G` / End | Select last task |
 | Tab / Shift-Tab | Select the next or previous All/Today/Upcoming/Completed view |
 | `]` / `[` | Select the next or previous view |
-| `a` | Add a task |
-| `e` | Edit the selected task |
+| `a` | Add a task using the active view's defaults |
+| `e` | Edit the selected task title |
 | `p` | Open the priority picker: Urgent `[4]`, High `[3]`, Normal `[2]`, Low `[1]` |
 | `s` | Open the schedule picker: Today `[1]`, Tomorrow `[2]`, +7 Days `[3]`, Custom `[4]`, Clear `[5]` |
 | `f` | Cycle priority filter: Any, Urgent, High, Normal, Low |
@@ -67,7 +67,7 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `d` / Delete | Delete the selected task |
 | `1`, `2`, `3`, `4` | Set Low, Normal, High, or Urgent priority directly in normal mode |
 | `h` / `←`, `l` / `→` | Lower or raise priority, clamped at Low and Urgent |
-| Mouse click | Select rows/tabs; activate checkboxes, priority/date controls, header badges, Help controls, and picker options on release inside the same target |
+| Mouse click | Select row backgrounds/tabs; edit task titles; activate checkboxes, priority/date controls, header badges, Help controls, and picker options on release inside the same target |
 | Mouse wheel | Move three visible tasks in normal mode; scroll three wrapped lines in Help |
 | Enter | Accept add/edit/custom-date text or the focused picker option |
 | Escape | Cancel text/picker input, close Help, or cancel an active drag |
@@ -77,9 +77,9 @@ Help is a modal, responsive reference for every keyboard, mouse, picker, and dra
 
 ## Mouse and drag behavior
 
-Hover never changes keyboard selection. Primary-button actions use release-inside safety: press and release must resolve to the same row, tab, checkbox, priority/date control, header badge, Help control, or picker option. Releasing elsewhere cancels; right click and double click have no action. The visible `FILTER:<name>` / `SORT:<name>` badges (compact `F:<initial>` / `S:<initial>` below 64 columns) cycle forward exactly like `f` and `o`.
+Hover never changes keyboard selection. Primary-button actions use release-inside safety: press and release must resolve to the same row, task title, tab, checkbox, priority/date control, header badge, Help control, or picker option. A title click opens the same bounded text editor as `e`; Enter saves a changed nonempty title and Escape cancels. Releasing elsewhere cancels; right click and double click have no action. The visible `FILTER:<name>` / `SORT:<name>` badges (compact `F:<initial>` / `S:<initial>` below 64 columns) cycle forward exactly like `f` and `o`.
 
-A primary press on a task-row body starts a drag candidate. The checkbox, priority marker, date/compact metadata slot, and focus/hover rails remain ordinary controls and never start a drag. The candidate becomes an active drag after a two-cell Manhattan movement. Releasing on a currently visible tab performs a stable-task-ID drop:
+A primary press on a task-row body or title starts a drag candidate. A title release below the two-cell drag threshold edits that title; a row-background release selects it. The checkbox, priority marker, date/compact metadata slot, and focus/hover rails remain ordinary controls and never start a drag. The candidate becomes an active drag after a two-cell Manhattan movement. Releasing on a currently visible tab performs a stable-task-ID drop:
 
 - **All** changes only the view and selection.
 - **Today** reopens a completed task if needed, schedules it for the startup date, and activates Today.
@@ -93,6 +93,8 @@ There is no drag-based row reordering. A hidden tab or unavailable date target c
 **All** contains every task. **Today** contains incomplete tasks due on or before the startup date. **Upcoming** contains incomplete tasks due after the startup date. **Completed** contains completed tasks regardless of due date. The local calendar date is captured once during startup; the process does not roll the snapshot over at midnight.
 
 The active view is applied first, then the session-only priority filter, then the session-only sort. Neither the active view, filter, nor sort is persisted; each launch starts in All / Any / Smart. Selection is tracked by stable task ID and retained across a projection change when that task remains visible.
+
+New tasks inherit the active temporal view so they remain in the section where they were created: **All** creates an incomplete unscheduled task, **Today** creates an incomplete task due on the startup date, **Upcoming** creates an incomplete task due tomorrow, and **Completed** creates a completed unscheduled task. New tasks still start at Normal priority. If the startup date is unavailable, creation from Today or Upcoming is refused without changing task data; All and Completed remain available.
 
 - **Smart / All**: incomplete overdue, due today, future scheduled, unscheduled, then completed. Scheduled buckets use due date ascending, priority descending, ID ascending; unscheduled tasks use priority descending then ID ascending; completed tasks use ID descending.
 - **Smart / Today**: due date ascending, priority descending, ID ascending, with nonselectable `OVERDUE` and `DUE TODAY` group headers when both the data and viewport permit.

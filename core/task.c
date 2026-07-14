@@ -130,18 +130,31 @@ bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriorit
     return true;
 }
 
-bool task_list_add(TaskList *list, const char *text, TaskPriority priority, uint64_t *id_out) {
+bool task_list_add_configured(TaskList *list, const char *text, TaskPriority priority,
+                              const char *due_date, bool completed, uint64_t *id_out) {
     if (list == NULL || list->next_id == 0U || list->next_id == UINT64_MAX) {
         return false;
     }
     const uint64_t id = list->next_id;
-    if (!task_list_import(list, id, text, priority, false)) {
+    if (!task_text_is_valid(text) || !task_priority_is_valid(priority) ||
+        (due_date != NULL && due_date[0] != '\0' && !task_due_date_is_valid(due_date)) ||
+        !reserve(list, list->length + 1U)) {
         return false;
     }
-    if (id_out != NULL) {
-        *id_out = id;
+    Task *task = &list->items[list->length++];
+    *task = (Task){.id = id, .priority = priority, .completed = completed};
+    memcpy(task->text, text, strlen(text) + 1U);
+    if (due_date != NULL && due_date[0] != '\0') {
+        memcpy(task->due_date, due_date, LOWTASK_DUE_DATE_LENGTH + 1U);
     }
+    list->next_id = id + 1U;
+    ++list->revision;
+    if (id_out != NULL) *id_out = id;
     return true;
+}
+
+bool task_list_add(TaskList *list, const char *text, TaskPriority priority, uint64_t *id_out) {
+    return task_list_add_configured(list, text, priority, NULL, false, id_out);
 }
 
 Task *task_list_get(TaskList *list, uint64_t id) {

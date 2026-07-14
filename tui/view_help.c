@@ -18,8 +18,8 @@ static const HelpGroup help_groups[] = {
      "Keys: j/Down and k/Up select next/previous; g/Home and G/End select first/last; Tab/Shift-Tab and [/] cycle the four views.",
      "Mouse: Row-body release selects; tab release activates; wheel moves three visible tasks and does not activate a task or tab."},
     {"Add and edit",
-     "Keys: a adds, e edits, Enter accepts text, Escape cancels, and q/Ctrl-C quits.",
-     "Mouse: Add/edit remain text modal interactions; outside clicks do not submit or dismiss."},
+     "Keys: a adds with active-view defaults, e edits the selected title, Enter accepts changed nonempty text, Escape cancels, and q/Ctrl-C quits.",
+     "Mouse: Task-title release opens Edit; outside clicks do not submit or dismiss text input."},
     {"Completion and deletion",
      "Keys: Space or x completes/reopens; d or Delete starts deletion. q or Ctrl-C commits a pending deletion immediately before quit.",
      "Mouse: Checkbox release toggles completion. A delete request cannot be canceled; it commits when its delete effect completes and locks other mutation first."},
@@ -40,7 +40,7 @@ static const HelpGroup help_groups[] = {
      "Mouse: Header HELP or ? opens; the top-right X target closes."},
     {"Drag and drop",
      "Keys: Drag is pointer-only; keyboard selection never follows pointer hover or drag target highlight. Escape cancels an active drag; q/Ctrl-C cancel it before quit.",
-     "Mouse: Primary row-body press, a 2-cell Manhattan movement, and release on a visible tab target performs the documented stable-ID drop. Wheel cancels; controls keep their normal click behavior."},
+     "Mouse: Primary row/title press, a 2-cell Manhattan movement, and release on a visible tab performs a stable-ID drop. Below threshold, row background selects and title edits. Wheel cancels; controls keep normal click behavior."},
 };
 
 static void help_add_wrapped(HelpVisualLine *lines, size_t capacity, size_t *count,

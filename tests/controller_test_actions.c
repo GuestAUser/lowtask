@@ -11,6 +11,7 @@ static void test_semantic_actions_and_mouse_activation(void) {
     const uint64_t second = controller_test_add_task(&tasks, "second", NULL, false);
     AppState state;
     assert(app_state_init(&state, &tasks));
+    assert(app_state_set_today(&state, "2026-07-11"));
 
     const AppAction select_second = {.type = APP_ACTION_SELECT_TASK, .task_id = second};
     controller_handle_action(&state, select_second);

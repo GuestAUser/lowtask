@@ -89,6 +89,7 @@ typedef enum {
     TUI_HIT_NONE = 0,
     TUI_HIT_TAB,
     TUI_HIT_TASK,
+    TUI_HIT_TASK_TITLE,
     TUI_HIT_CHECK,
     TUI_HIT_PRIORITY,
     TUI_HIT_DATE,
@@ -109,6 +110,9 @@ typedef struct {
 bool tui_layout_compute(size_t width, size_t height, const TuiViewState *view, TuiLayout *layout);
 size_t tui_date_column_width(size_t terminal_width);
 size_t tui_task_row_shift(const TuiViewState *view, uint64_t task_id, size_t visible_index);
+void tui_task_title_bounds(const TuiViewState *view, const TuiLayout *layout,
+                           uint64_t task_id, size_t visible_index,
+                           size_t *title_x, size_t *title_width);
 size_t tui_task_display_row(const AppState *state, uint64_t task_id, size_t viewport_rows);
 void tui_help_metrics(size_t width, size_t height, bool ascii, size_t *line_count,
                       size_t *page_rows);

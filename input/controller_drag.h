@@ -8,6 +8,6 @@ void controller_drag_clear(AppState *state, bool preserve_source);
 void controller_drag_cancel(AppState *state, const char *message);
 void controller_drag_begin(AppState *state, AppAction action, InputEvent event);
 void controller_drag_track(AppState *state, AppAction action, InputEvent event);
-void controller_drag_resolve_release(AppState *state, AppAction action, InputEvent event);
+AppAction controller_drag_resolve_release(AppState *state, AppAction action, InputEvent event);
 
 #endif

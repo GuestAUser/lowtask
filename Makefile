@@ -48,6 +48,7 @@ APP_SOURCES := \
 	tui/layout.c \
 	tui/hit_test.c \
 	tui/render.c \
+	tui/task_geometry.c \
 	tui/text_cells.c \
 	tui/view_common.c \
 	tui/view_chrome.c \
@@ -83,13 +84,14 @@ TEST_PLATFORM_SOURCES := tests/test_platform.c platform/terminal.c
 TEST_MOUSE_SOURCES := tests/test_mouse.c input/input.c input/mouse_decoder.c platform/terminal.c
 TEST_VIEW_SOURCES := tests/test_view.c core/date.c core/task.c core/state.c core/view_order.c \
 	core/view_sort.c tui/animation.c tui/color.c tui/layout.c tui/hit_test.c tui/render.c \
-	tui/text_cells.c \
+	tui/task_geometry.c tui/text_cells.c \
 	tui/view_common.c tui/view_chrome.c tui/view_rows.c tui/view_help.c \
 	tui/view_overlay.c tui/view.c
 TEST_CONTROLLER_SOURCES := \
 	tests/test_controller.c \
 	tests/controller_test_support.c \
 	tests/controller_test_actions.c \
+	tests/controller_test_context.c \
 	tests/controller_test_navigation.c \
 	tests/controller_test_navigation_actions.c \
 	tests/controller_test_modal_workflows.c \
@@ -120,6 +122,7 @@ TEST_PTY_SOURCES := \
 	tests/pty_test_session.c \
 	tests/pty_test_child.c \
 	tests/pty_test_scenario_keyboard.c \
+	tests/pty_test_scenario_context.c \
 	tests/pty_test_scenario_mouse_help.c \
 	tests/pty_test_scenario_drag.c \
 	tests/pty_test_scenario_reduced_signal.c \
@@ -128,7 +131,7 @@ TEST_PTY_SOURCES := \
 
 TEST_PERFORMANCE_SOURCES := tests/test_performance.c core/date.c core/task.c core/state.c core/view_order.c \
 	core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c input/controller_navigation.c input/controller_drag.c tui/animation.c tui/color.c tui/layout.c \
-	tui/render.c tui/text_cells.c tui/view_common.c tui/view_chrome.c tui/view_rows.c \
+	tui/render.c tui/task_geometry.c tui/text_cells.c tui/view_common.c tui/view_chrome.c tui/view_rows.c \
 	tui/view_help.c tui/view_overlay.c tui/view.c
 
 TEST_CORE_OBJECTS := $(TEST_CORE_SOURCES:%.c=build/test-objects/%.o)

@@ -103,7 +103,8 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
     if (!app_state_is_initialized(state) || event.type != INPUT_KEY_MOUSE || state->quit) return;
     if ((state->drag_active || state->drag_candidate) && event.mouse_action == INPUT_MOUSE_RELEASE &&
         event.mouse_button == INPUT_MOUSE_BUTTON_LEFT) {
-        controller_drag_resolve_release(state, action, event);
+        const AppAction click = controller_drag_resolve_release(state, action, event);
+        if (click.type != APP_ACTION_NONE) controller_handle_action(state, click);
         return;
     }
     if (state->drag_active) {
@@ -140,7 +141,8 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
             controller_clear_pointer(state);
             return;
         }
-        if (state->mode == APP_MODE_NORMAL && action.type == APP_ACTION_SELECT_TASK) {
+        if (state->mode == APP_MODE_NORMAL &&
+            (action.type == APP_ACTION_SELECT_TASK || action.type == APP_ACTION_EDIT_TASK)) {
             controller_drag_begin(state, action, event);
             return;
         }

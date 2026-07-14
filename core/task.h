@@ -40,6 +40,8 @@ bool task_text_is_valid(const char *text);
 bool task_due_date_is_valid(const char *due_date);
 bool task_priority_is_valid(TaskPriority priority);
 bool task_list_add(TaskList *list, const char *text, TaskPriority priority, uint64_t *id_out);
+bool task_list_add_configured(TaskList *list, const char *text, TaskPriority priority,
+                              const char *due_date, bool completed, uint64_t *id_out);
 bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriority priority, bool completed);
 bool task_list_edit(TaskList *list, uint64_t id, const char *text);
 bool task_list_delete(TaskList *list, uint64_t id);

@@ -1,5 +1,7 @@
 #include "tui/hit_test.h"
 
+#include "tui/view_common.h"
+
 static bool contains(TuiRect rectangle, size_t x, size_t y) {
     return rectangle.width > 0U && rectangle.height > 0U && x >= rectangle.x && y >= rectangle.y &&
            x - rectangle.x < rectangle.width && y - rectangle.y < rectangle.height;
@@ -14,6 +16,16 @@ static TuiHit hit_for_task(const TuiViewState *view, const TuiLayout *layout,
     if (x >= check_x && x < check_x + 3U) {
         hit.kind = TUI_HIT_CHECK;
         hit.action.type = APP_ACTION_TOGGLE_TASK;
+        return hit;
+    }
+    size_t title_x = 0U;
+    size_t title_width = 0U;
+    tui_task_title_bounds(view, layout, task->id, task_ordinal, &title_x, &title_width);
+    const size_t title_cells = tui_view_display_cells(task->text);
+    const size_t title_target_width = title_cells < title_width ? title_cells : title_width;
+    if (x >= title_x && x - title_x < title_target_width) {
+        hit.kind = TUI_HIT_TASK_TITLE;
+        hit.action.type = APP_ACTION_EDIT_TASK;
         return hit;
     }
     const size_t priority_x = layout->rows.x + shift + (view->ascii ? 5U : 4U);

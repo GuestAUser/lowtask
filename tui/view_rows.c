@@ -171,11 +171,11 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
         if (x < layout->rows.x + layout->rows.width) ++x;
     }
     const size_t row_end = layout->rows.x + layout->rows.width;
-    const size_t text_end = date_width > 0U && row_end > date_width + 1U ?
-                            row_end - date_width - 1U : row_end;
-    if (x < text_end) {
+    size_t title_width = 0U;
+    tui_task_title_bounds(view, layout, task->id, visible_index, &x, &title_width);
+    if (title_width > 0U) {
         tui_view_put_truncated(
-            renderer, x, layout->rows.y + row, task->text, text_end - x, view->ascii,
+            renderer, x, layout->rows.y + row, task->text, title_width, view->ascii,
             (RendererStyle){.foreground = tui_view_color(task->completed ?
                                                          TUI_COLOR_TEXT_MUTED : TUI_COLOR_TEXT),
                             .background = background_rgb,

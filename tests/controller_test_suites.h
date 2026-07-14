@@ -7,6 +7,7 @@ void run_controller_drag_behavior_tests(void);
 
 void run_controller_navigation_tests(void);
 void run_controller_action_tests(void);
+void run_controller_context_tests(void);
 void run_controller_modal_primary_tests(void);
 void run_controller_modal_regression_tests(void);
 void run_controller_drag_resolution_tests(void);

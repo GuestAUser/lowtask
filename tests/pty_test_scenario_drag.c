@@ -70,11 +70,15 @@ bool scenario_drag_normal(void) {
           screen_find_row_title(&session.screen, "schedule target", &second_x, &second_y),
           "threshold rows missing");
     CHECK(mouse_event(&session, 0U, first_x + 8U, first_y, 'M') &&
-          mouse_event(&session, 0U, first_x + 9U, first_y, 'm') && session_settle(&session, 150),
-          "below-threshold same-row selection failed");
+          mouse_event(&session, 0U, first_x + 9U, first_y, 'm') &&
+          session_wait(&session, "EDIT TASK", SESSION_DEADLINE_MS),
+          "below-threshold title click did not edit");
+    CHECK(session_send(&session, "\x1b") && session_wait(&session, "cancelled", SESSION_DEADLINE_MS),
+          "title edit cancel failed");
     CHECK(mouse_event(&session, 0U, first_x + 8U, first_y, 'M') &&
-          mouse_event(&session, 0U, second_x + 8U, second_y, 'm') && session_settle(&session, 150),
-          "below-threshold cross-row cancel failed");
+          mouse_event(&session, 0U, second_x + 8U, second_y, 'm') &&
+          session_wait(&session, "drag cancelled", SESSION_DEADLINE_MS),
+          "cross-row title release did not cancel");
 
     offset = session.transcript.length;
     CHECK(mouse_event(&session, 0U, first_x + 8U, first_y, 'M') &&

@@ -165,6 +165,7 @@ bool drag_title_to_label(Session *session, const char *title, const char *label,
 bool set_all_tab(Session *session);
 
 bool scenario_keyboard_workflow(void);
+bool scenario_contextual_creation_and_title_edit(void);
 bool scenario_mouse_help_modal(void);
 bool scenario_drag_normal(void);
 bool scenario_reduced_narrow_and_signal(void);
