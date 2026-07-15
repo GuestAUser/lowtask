@@ -29,10 +29,10 @@ AppAction controller_navigation_handle_normal(AppState *state, InputEvent event)
                               "help unavailable while input or delete is pending" : "deleting task");
     } else if (event.type == INPUT_KEY_MOUSE && event.mouse_action == INPUT_MOUSE_WHEEL) {
         if (event.mouse_button == INPUT_MOUSE_BUTTON_WHEEL_UP) {
-            (void)app_state_move_selection(state, -1, 3U);
+            (void)app_state_move_selection(state, -1, 1U);
         }
         if (event.mouse_button == INPUT_MOUSE_BUTTON_WHEEL_DOWN) {
-            (void)app_state_move_selection(state, 1, 3U);
+            (void)app_state_move_selection(state, 1, 1U);
         }
     } else if (event.type == INPUT_KEY_UP || character == 'k') {
         (void)app_state_move_selection(state, -1, 1U);

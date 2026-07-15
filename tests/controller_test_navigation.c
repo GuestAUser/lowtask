@@ -31,15 +31,15 @@ static void test_tabs_and_filtered_navigation(void) {
         .mouse_action = INPUT_MOUSE_WHEEL,
         .mouse_button = INPUT_MOUSE_BUTTON_WHEEL_DOWN,
     });
-    assert(state.selected == 3U);
-    assert(state.selected_task_id == tasks.items[3].id);
+    assert(state.selected == 1U);
+    assert(state.selected_task_id == today);
     controller_handle(&state, (InputEvent){
         .type = INPUT_KEY_MOUSE,
         .mouse_action = INPUT_MOUSE_WHEEL,
         .mouse_button = INPUT_MOUSE_BUTTON_WHEEL_DOWN,
     });
-    assert(state.selected == 4U);
-    assert(state.selected_task_id == completed);
+    assert(state.selected == 2U);
+    assert(state.selected_task_id == future);
     controller_handle(&state, (InputEvent){
         .type = INPUT_KEY_MOUSE,
         .mouse_action = INPUT_MOUSE_WHEEL,
