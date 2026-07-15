@@ -24,10 +24,10 @@ static const ColorValue palette[TUI_COLOR_COUNT] = {
     [TUI_COLOR_ACCENT_STRONG] = {0x86efacU, 157U},
     [TUI_COLOR_BORDER] = {0x4b805dU, 65U},
     [TUI_COLOR_GRID] = {0x1d3828U, 235U},
-    [TUI_COLOR_URGENT] = {0xf15d9eU, 205U},
-    [TUI_COLOR_DANGER] = {0xf87171U, 210U},
-    [TUI_COLOR_WARNING] = {0xe7c55aU, 222U},
-    [TUI_COLOR_INFO] = {0x68aeefU, 117U},
+    [TUI_COLOR_URGENT] = {0xff8793U, 210U},
+    [TUI_COLOR_DANGER] = {0xf87171U, 203U},
+    [TUI_COLOR_WARNING] = {0xd6b96bU, 180U},
+    [TUI_COLOR_INFO] = {0x7fa58bU, 108U},
 };
 
 static unsigned component(uint32_t color, unsigned shift) {
@@ -44,6 +44,63 @@ unsigned color_token_xterm(TuiColorToken token) {
                                                                 : palette[TUI_COLOR_TEXT].xterm;
 }
 
+static unsigned color_distance(uint32_t rgb, unsigned red, unsigned green, unsigned blue) {
+    const int red_delta = (int)component(rgb, 16U) - (int)red;
+    const int green_delta = (int)component(rgb, 8U) - (int)green;
+    const int blue_delta = (int)component(rgb, 0U) - (int)blue;
+    return (unsigned)(red_delta * red_delta + green_delta * green_delta +
+                      blue_delta * blue_delta);
+}
+
+static unsigned nearest_cube_level(unsigned value) {
+    static const unsigned levels[] = {0U, 95U, 135U, 175U, 215U, 255U};
+    unsigned nearest = 0U;
+    unsigned difference = 256U;
+    for (unsigned index = 0U; index < 6U; ++index) {
+        const unsigned candidate_difference = value > levels[index] ?
+                                              value - levels[index] : levels[index] - value;
+        if (candidate_difference < difference) {
+            nearest = index;
+            difference = candidate_difference;
+        }
+    }
+    return nearest;
+}
+
+static unsigned nearest_xterm_index(uint32_t rgb) {
+    unsigned nearest = palette[TUI_COLOR_TEXT].xterm;
+    unsigned distance = UINT32_MAX;
+    for (size_t token = 0U; token < TUI_COLOR_COUNT; ++token) {
+        const unsigned candidate = color_distance(rgb, component(palette[token].rgb, 16U),
+                                                   component(palette[token].rgb, 8U),
+                                                   component(palette[token].rgb, 0U));
+        if (candidate < distance) {
+            nearest = palette[token].xterm;
+            distance = candidate;
+        }
+    }
+
+    static const unsigned levels[] = {0U, 95U, 135U, 175U, 215U, 255U};
+    const unsigned red_level = nearest_cube_level(component(rgb, 16U));
+    const unsigned green_level = nearest_cube_level(component(rgb, 8U));
+    const unsigned blue_level = nearest_cube_level(component(rgb, 0U));
+    const unsigned cube_distance = color_distance(rgb, levels[red_level], levels[green_level],
+                                                   levels[blue_level]);
+    if (cube_distance < distance) {
+        nearest = 16U + 36U * red_level + 6U * green_level + blue_level;
+        distance = cube_distance;
+    }
+    for (unsigned index = 232U; index <= 255U; ++index) {
+        const unsigned gray = 8U + 10U * (index - 232U);
+        const unsigned gray_distance = color_distance(rgb, gray, gray, gray);
+        if (gray_distance < distance) {
+            nearest = index;
+            distance = gray_distance;
+        }
+    }
+    return nearest;
+}
+
 int color_ansi(char *output, size_t output_size, uint32_t rgb, bool truecolor, bool foreground) {
     if (output == NULL || output_size == 0U) {
         return -1;
@@ -56,21 +113,7 @@ int color_ansi(char *output, size_t output_size, uint32_t rgb, bool truecolor, b
         written = snprintf(output, output_size, "\x1b[%d;2;%u;%u;%um", foreground ? 38 : 48,
                            red, green, blue);
     } else {
-        unsigned index = 0U;
-        bool semantic = false;
-        for (size_t token = 0U; token < TUI_COLOR_COUNT; ++token) {
-            if (palette[token].rgb == rgb) {
-                index = palette[token].xterm;
-                semantic = true;
-                break;
-            }
-        }
-        if (!semantic) {
-            const unsigned red_level = (red * 5U + 127U) / 255U;
-            const unsigned green_level = (green * 5U + 127U) / 255U;
-            const unsigned blue_level = (blue * 5U + 127U) / 255U;
-            index = 16U + 36U * red_level + 6U * green_level + blue_level;
-        }
+        const unsigned index = nearest_xterm_index(rgb);
         written = snprintf(output, output_size, "\x1b[%d;5;%um", foreground ? 38 : 48, index);
     }
     return written >= 0 && (size_t)written < output_size ? written : -1;

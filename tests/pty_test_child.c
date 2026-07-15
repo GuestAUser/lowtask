@@ -16,7 +16,9 @@ static bool configure_child_environment(const char *root, bool reduced, bool asc
     return setenv("XDG_DATA_HOME", root, 1) == 0 && setenv("HOME", root, 1) == 0 &&
            setenv("TERM", "xterm-256color", 1) == 0 && setenv("LC_ALL", pty_test_utf8_locale(), 1) == 0 &&
            setenv("LOWTASK_REDUCE_MOTION", reduced ? "1" : "0", 1) == 0 &&
-           setenv("LOWTASK_ASCII", ascii ? "1" : "0", 1) == 0 && unsetenv("COLORTERM") == 0;
+           setenv("LOWTASK_ASCII", ascii ? "1" : "0", 1) == 0 && unsetenv("COLORTERM") == 0 &&
+           unsetenv("WT_SESSION") == 0 && unsetenv("KITTY_WINDOW_ID") == 0 &&
+           unsetenv("WEZTERM_EXECUTABLE") == 0 && unsetenv("GHOSTTY_RESOURCES_DIR") == 0;
 }
 
 Child spawn_child(int master, int slave, const char *root, bool reduced, bool ascii) {

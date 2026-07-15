@@ -125,6 +125,21 @@ static size_t text_row(const Renderer *renderer, const char *needle) {
     return SIZE_MAX;
 }
 
+static size_t text_column_on_row(const Renderer *renderer, size_t row, const char *text) {
+    const size_t length = strlen(text);
+    if (row >= renderer->height || length > renderer->width) return SIZE_MAX;
+    for (size_t column = 0U; column + length <= renderer->width; ++column) {
+        size_t offset = 0U;
+        while (offset < length) {
+            const RendererCell *cell = &renderer->back[row * renderer->width + column + offset];
+            if (cell->glyph_length != 1U || cell->glyph[0] != text[offset]) break;
+            ++offset;
+        }
+        if (offset == length) return column;
+    }
+    return SIZE_MAX;
+}
+
 static size_t text_row_at(const Renderer *renderer, size_t column, const char *text) {
     const size_t length = strlen(text);
     if (column + length > renderer->width) return SIZE_MAX;
@@ -261,6 +276,24 @@ static void test_responsive_fallbacks_and_dates(void) {
         .status = state.status,
     };
     tui_draw(&renderer, &tasks, &view);
+    TuiLayout completed_layout;
+    assert(tui_layout_compute(renderer.width, renderer.height, &view, &completed_layout));
+    const size_t completed_row = text_row(&renderer, "finished");
+    const size_t completed_title_x = text_column_on_row(&renderer, completed_row, "finished");
+    assert(completed_row != SIZE_MAX && completed_title_x != SIZE_MAX);
+    const RendererCell *completed_title =
+        &renderer.back[completed_row * renderer.width + completed_title_x];
+    assert(completed_title->foreground == color_token_rgb(TUI_COLOR_TEXT_MUTED));
+    assert((completed_title->attributes & RENDER_ATTR_STRIKE) != 0U);
+    assert((completed_title->attributes & RENDER_ATTR_DIM) == 0U);
+    const RendererCell *completed_check =
+        &renderer.back[completed_row * renderer.width + completed_layout.rows.x + 1U];
+    const RendererCell *completed_priority =
+        &renderer.back[completed_row * renderer.width + completed_layout.rows.x + 4U];
+    assert(completed_check->foreground == color_token_rgb(TUI_COLOR_ACCENT));
+    assert(completed_priority->foreground == color_token_rgb(TUI_COLOR_TEXT_MUTED));
+    assert((completed_check->attributes & (RENDER_ATTR_DIM | RENDER_ATTR_STRIKE)) == 0U);
+    assert((completed_priority->attributes & (RENDER_ATTR_DIM | RENDER_ATTR_STRIKE)) == 0U);
     assert(screen_contains(&renderer, "tomorrow"));
     assert(screen_contains(&renderer, "done"));
     assert(screen_has_foreground(&renderer, color_token_rgb(TUI_COLOR_GRID)));

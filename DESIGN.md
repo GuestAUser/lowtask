@@ -108,6 +108,17 @@ even when they are individually well implemented.
 
 - Semantic colors are defined in one TUI color layer. Components consume named
   roles; they do not invent local RGB or xterm values.
+- Persistent hierarchy uses explicit semantic colors rather than terminal `dim`,
+  whose brightness is emulator-defined. Dimming is reserved for bounded
+  transient effects; muted labels, completed rows, and decorative texture must
+  remain predictable without it.
+- The xterm-256 fallback preserves focus with contrast-safe surfaces and green
+  rails instead of forcing coarse saturated cube colors. Exact semantic tokens
+  use deliberate indexes, while animated blends remain attached to the nearest
+  role before falling back to the nearest cube or grayscale entry, so low-light
+  transitions never quantize to black.
+- Completion outranks obsolete priority: completed rows retain their check,
+  strike, and muted text cues but suppress active priority hues.
 - State is never color-only. Focus, priority, schedule, completion, errors, and
   drag targets also use text, glyph, position, weight, or linework.
 - Layout is measured in terminal cells. UTF-8 sequences stay intact, combining

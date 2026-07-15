@@ -86,9 +86,8 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
     else if (hovered) background_token = TUI_COLOR_HOVER;
     if (pressed || selected || hovered) background_rgb = tui_view_color(background_token);
     const size_t shift = tui_task_row_shift(view, task->id, visible_index);
-    unsigned task_attributes = task->completed ? RENDER_ATTR_DIM | RENDER_ATTR_STRIKE :
-                                                RENDER_ATTR_NONE;
-    if (app->drag_active && app->drag_task_id == task->id) task_attributes |= RENDER_ATTR_DIM;
+    unsigned transient_attributes = RENDER_ATTR_NONE;
+    if (app->drag_active && app->drag_task_id == task->id) transient_attributes |= RENDER_ATTR_DIM;
     if (app->effect_task_id == task->id && view->effect != TUI_EFFECT_NONE &&
         view->effect != TUI_EFFECT_TAB) {
         const float progress = animation_motion_progress(view->effect_progress);
@@ -107,7 +106,7 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
         } else if (view->effect == TUI_EFFECT_DELETE) {
             background_rgb = color_blend(background_rgb, tui_view_color(TUI_COLOR_DANGER),
                                          progress * 0.42F);
-            task_attributes |= RENDER_ATTR_DIM;
+            transient_attributes |= RENDER_ATTR_DIM;
         } else if (view->effect == TUI_EFFECT_MOVE) {
             background_rgb = color_blend(background_rgb, tui_view_color(TUI_COLOR_ACCENT),
                                          (1.0F - progress) * 0.28F);
@@ -118,6 +117,8 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
         .background = background_rgb,
         .attributes = RENDER_ATTR_NONE,
     };
+    const unsigned title_attributes = transient_attributes |
+                                      (task->completed ? RENDER_ATTR_STRIKE : 0U);
     renderer_fill(renderer, layout->rows.x, layout->rows.y + row, layout->rows.width, 1U,
                   ' ', row_style);
     if (shift >= layout->rows.width) return;
@@ -139,7 +140,7 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
     tui_view_put(renderer, x, layout->rows.y + row, check, check_width,
                  (RendererStyle){.foreground = tui_view_color(TUI_COLOR_ACCENT),
                                  .background = background_rgb,
-                                 .attributes = task_attributes});
+                                 .attributes = transient_attributes});
     x = layout->rows.x + shift + (view->ascii ? 5U : 4U);
     const char *priority = view->ascii ?
         (task->priority == TASK_PRIORITY_URGENT ? "U" :
@@ -150,9 +151,10 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
           (task->priority == TASK_PRIORITY_LOW ? "▽" : "•")));
     tui_view_put(renderer, x, layout->rows.y + row, priority, 1U,
                  (RendererStyle){.foreground = tui_view_color(
-                                     tui_view_priority_color(task->priority)),
+                                     task->completed ? TUI_COLOR_TEXT_MUTED :
+                                                       tui_view_priority_color(task->priority)),
                                  .background = background_rgb,
-                                 .attributes = task_attributes});
+                                 .attributes = transient_attributes});
     const size_t date_width = tui_date_column_width(renderer->width);
     x += date_width == 0U ? (renderer->width < TUI_MINIMAL_COLUMNS ? 2U : 4U) : 2U;
     if (date_width == 0U && x < layout->rows.x + layout->rows.width) {
@@ -167,7 +169,7 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
         tui_view_put(renderer, x++, layout->rows.y + row, marker, 1U,
                      (RendererStyle){.foreground = tui_view_color(marker_color),
                                      .background = background_rgb,
-                                     .attributes = task_attributes});
+                                     .attributes = transient_attributes});
         if (x < layout->rows.x + layout->rows.width) ++x;
     }
     const size_t row_end = layout->rows.x + layout->rows.width;
@@ -179,7 +181,7 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
             (RendererStyle){.foreground = tui_view_color(task->completed ?
                                                          TUI_COLOR_TEXT_MUTED : TUI_COLOR_TEXT),
                             .background = background_rgb,
-                            .attributes = task_attributes |
+                            .attributes = title_attributes |
                                           (selected ? RENDER_ATTR_BOLD : 0U)});
     }
     if (date_width > 0U) {
@@ -194,8 +196,7 @@ void tui_view_draw_task(Renderer *renderer, const TuiLayout *layout,
         tui_view_put(renderer, date_x, layout->rows.y + row, label, date_width,
                      (RendererStyle){.foreground = tui_view_color(date_color),
                                      .background = background_rgb,
-                                     .attributes = date_attributes |
-                                                   (task->completed ? RENDER_ATTR_DIM : 0U)});
+                                     .attributes = date_attributes | transient_attributes});
     }
 }
 
@@ -209,7 +210,7 @@ static const char *group_name(AppGroup group) {
 void tui_view_draw_group(Renderer *renderer, const TuiLayout *layout,
                          AppGroup group, size_t row) {
     renderer_fill(renderer, layout->rows.x, layout->rows.y + row, layout->rows.width, 1U, ' ',
-                  tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_PANEL, RENDER_ATTR_DIM));
+                  tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_PANEL, RENDER_ATTR_NONE));
     tui_view_put(renderer, layout->rows.x + (layout->rows.width > 2U ? 2U : 0U),
                  layout->rows.y + row, group_name(group), layout->rows.width,
                  tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_PANEL, RENDER_ATTR_BOLD));
@@ -236,7 +237,7 @@ void tui_view_draw_empty(Renderer *renderer, const TuiLayout *layout,
                          (layout->rows.width > add_length ?
                           (layout->rows.width - add_length) / 2U : 0U);
     tui_view_put(renderer, add_x, group_y + 1U, add, layout->rows.width,
-                 tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_PANEL, RENDER_ATTR_DIM));
+                 tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_PANEL, RENDER_ATTR_NONE));
 }
 
 void tui_view_draw_grid(Renderer *renderer, const TuiLayout *layout,
@@ -246,7 +247,7 @@ void tui_view_draw_grid(Renderer *renderer, const TuiLayout *layout,
     for (size_t row = used_rows + 3U; row < layout->rows.height; row += 4U) {
         for (size_t column = 7U; column < layout->rows.width; column += 8U) {
             tui_view_put(renderer, layout->rows.x + column, layout->rows.y + row, "·", 1U,
-                         tui_view_style(TUI_COLOR_GRID, TUI_COLOR_PANEL, RENDER_ATTR_DIM));
+                         tui_view_style(TUI_COLOR_GRID, TUI_COLOR_PANEL, RENDER_ATTR_NONE));
         }
     }
 }

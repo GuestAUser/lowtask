@@ -126,7 +126,11 @@ static void test_color_modes(void) {
     assert(color_ansi(output, sizeof(output), 0x336699U, false, false) > 0);
     assert(strstr(output, "48;5;") != NULL);
     assert(color_ansi(output, sizeof(output), color_token_rgb(TUI_COLOR_URGENT), false, true) > 0);
-    assert(strstr(output, "38;5;205") != NULL);
+    assert(strstr(output, "38;5;210") != NULL);
+    const uint32_t dark_blend = color_blend(color_token_rgb(TUI_COLOR_PANEL),
+                                            color_token_rgb(TUI_COLOR_ROW_ALT), 0.25F);
+    assert(color_ansi(output, sizeof(output), dark_blend, false, false) > 0);
+    assert(strstr(output, "48;5;233") != NULL);
 }
 
 static void test_palette_tokens(void) {
@@ -149,10 +153,10 @@ static void test_palette_tokens(void) {
         [TUI_COLOR_ACCENT_STRONG] = {0x86efacU, 157U},
         [TUI_COLOR_BORDER] = {0x4b805dU, 65U},
         [TUI_COLOR_GRID] = {0x1d3828U, 235U},
-        [TUI_COLOR_URGENT] = {0xf15d9eU, 205U},
-        [TUI_COLOR_DANGER] = {0xf87171U, 210U},
-        [TUI_COLOR_WARNING] = {0xe7c55aU, 222U},
-        [TUI_COLOR_INFO] = {0x68aeefU, 117U},
+        [TUI_COLOR_URGENT] = {0xff8793U, 210U},
+        [TUI_COLOR_DANGER] = {0xf87171U, 203U},
+        [TUI_COLOR_WARNING] = {0xd6b96bU, 180U},
+        [TUI_COLOR_INFO] = {0x7fa58bU, 108U},
     };
 
     for (TuiColorToken token = TUI_COLOR_CANVAS; token < TUI_COLOR_COUNT; ++token) {

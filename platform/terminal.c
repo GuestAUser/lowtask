@@ -43,19 +43,31 @@ static bool contains_case_insensitive(const char *text, const char *needle) {
     return false;
 }
 
+static bool environment_has_value(const char *name) {
+    const char *value = getenv(name);
+    return value != NULL && value[0] != '\0';
+}
+
 void terminal_detect_capabilities(TerminalCapabilities *capabilities) {
     if (capabilities == NULL) {
         return;
     }
     const char *color_term = getenv("COLORTERM");
     const char *term = getenv("TERM");
+    const bool known_truecolor_term = contains_case_insensitive(term, "direct") ||
+                                      contains_case_insensitive(term, "kitty") ||
+                                      contains_case_insensitive(term, "alacritty") ||
+                                      contains_case_insensitive(term, "wezterm") ||
+                                      contains_case_insensitive(term, "foot") ||
+                                      contains_case_insensitive(term, "ghostty");
+    const bool known_truecolor_session = environment_has_value("WT_SESSION") ||
+                                         environment_has_value("KITTY_WINDOW_ID") ||
+                                         environment_has_value("WEZTERM_EXECUTABLE") ||
+                                         environment_has_value("GHOSTTY_RESOURCES_DIR");
     const bool truecolor = contains_case_insensitive(color_term, "truecolor") ||
                            contains_case_insensitive(color_term, "24bit") ||
-                           contains_case_insensitive(term, "direct");
-    const bool color256 = truecolor || contains_case_insensitive(term, "256color") ||
-                          contains_case_insensitive(term, "kitty") ||
-                          contains_case_insensitive(term, "alacritty") ||
-                          contains_case_insensitive(term, "foot");
+                           known_truecolor_term || known_truecolor_session;
+    const bool color256 = truecolor || contains_case_insensitive(term, "256color");
     const char *locale = getenv("LC_ALL");
     if (locale == NULL || locale[0] == '\0') locale = getenv("LC_CTYPE");
     if (locale == NULL || locale[0] == '\0') locale = getenv("LANG");

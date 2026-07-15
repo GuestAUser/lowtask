@@ -12,7 +12,7 @@ bool scenario_keyboard_workflow(void) {
           screen_contains(&session.screen, "long ASCII") &&
           session.transcript.bytes != NULL && strstr(session.transcript.bytes, "\xe4\xb8\xad\xe6\x96\x87") != NULL,
           "seeded Unicode workflow frame incomplete");
-    CHECK(strstr(session.transcript.bytes, "38;5;205") != NULL, "Urgent ANSI-256 sequence missing");
+    CHECK(strstr(session.transcript.bytes, "38;5;210") != NULL, "Urgent ANSI-256 sequence missing");
 
     CHECK(session_send_expect(&session, "aadded by pty\r", "task added"),
           "add workflow failed");

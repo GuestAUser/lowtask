@@ -16,7 +16,7 @@ void tui_draw(Renderer *renderer, const TaskList *tasks, const TuiViewState *vie
         tui_view_put(renderer, header_x + 9U, 0U, "focus, without friction",
                      layout.filter_target.x - header_x - 9U,
                      tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_CANVAS,
-                                    RENDER_ATTR_DIM));
+                                    RENDER_ATTR_NONE));
     }
     tui_view_draw_header(renderer, &layout, view);
     if (renderer->height < 4U) {
