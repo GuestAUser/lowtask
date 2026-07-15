@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define RECORD_MAX (LOWTASK_TEXT_MAX * 2U + 128U)
+#define RECORD_MAX ((LOWTASK_TEXT_MAX + LOWTASK_DESCRIPTION_MAX) * 2U + 128U)
 
 static void set_error(char *error, size_t size, const char *format, ...) {
     if (error == NULL || size == 0U) return;
@@ -42,18 +42,22 @@ static bool decode_text(const char *hex, char output[LOWTASK_TEXT_MAX + 1U]) {
         const int high = hex_value(hex[index]);
         const int low = hex_value(hex[index + 1U]);
         if (high < 0 || low < 0) return false;
-        output[index / 2U] = (char)((high << 4) | low);
+        const unsigned char byte = (unsigned char)((high << 4) | low);
+        if (byte == 0U) return false;
+        output[index / 2U] = (char)byte;
     }
     output[length / 2U] = '\0';
     return task_text_is_valid(output);
 }
 
 static bool split_task(char *line, unsigned int version, uint64_t *id, TaskPriority *priority,
-                       bool *completed, char due_date[LOWTASK_DUE_DATE_LENGTH + 1U],
-                       char text[LOWTASK_TEXT_MAX + 1U]) {
-    const bool has_due_date = version == 2U || version == 3U;
-    const size_t expected = has_due_date ? 6U : 5U;
-    char *fields[6] = {line};
+                        bool *completed, char due_date[LOWTASK_DUE_DATE_LENGTH + 1U],
+                        char text[LOWTASK_TEXT_MAX + 1U],
+                        char description[LOWTASK_DESCRIPTION_MAX + 1U]) {
+    const bool has_due_date = version >= 2U;
+    const bool has_description = version == 4U;
+    const size_t expected = 5U + (has_due_date ? 1U : 0U) + (has_description ? 1U : 0U);
+    char *fields[7] = {line};
     size_t count = 1U;
     for (char *cursor = line; *cursor != '\0'; ++cursor) {
         if (*cursor != '\t') continue;
@@ -69,7 +73,7 @@ static bool split_task(char *line, unsigned int version, uint64_t *id, TaskPrior
     char *due_date_text = has_due_date ? fields[4] : NULL;
     char *hex = fields[has_due_date ? 5U : 4U];
     uint64_t priority_value = 0U;
-    const uint64_t maximum_priority = version == 3U ? TASK_PRIORITY_URGENT : TASK_PRIORITY_HIGH;
+    const uint64_t maximum_priority = version >= 3U ? TASK_PRIORITY_URGENT : TASK_PRIORITY_HIGH;
     if (!parse_u64(priority_text, &priority_value) || priority_value > maximum_priority ||
         !task_priority_is_valid((TaskPriority)priority_value) ||
         (strcmp(completed_text, "0") != 0 && strcmp(completed_text, "1") != 0) ||
@@ -80,6 +84,10 @@ static bool split_task(char *line, unsigned int version, uint64_t *id, TaskPrior
     if (has_due_date && strcmp(due_date_text, "-") != 0) {
         if (!task_due_date_is_valid(due_date_text)) return false;
         memcpy(due_date, due_date_text, LOWTASK_DUE_DATE_LENGTH + 1U);
+    }
+    description[0] = '\0';
+    if (has_description && strcmp(fields[6], "-") != 0) {
+        if (!decode_text(fields[6], description)) return false;
     }
     *priority = (TaskPriority)priority_value;
     *completed = completed_text[0] == '1';
@@ -108,6 +116,8 @@ static bool parse_header(const char *line, unsigned int *version) {
         *version = 2U;
     } else if (strcmp(line, "LOWTASK\t3") == 0) {
         *version = 3U;
+    } else if (strcmp(line, "LOWTASK\t4") == 0) {
+        *version = 4U;
     } else {
         return false;
     }
@@ -143,8 +153,10 @@ bool persistence_format_load(FILE *file, TaskList *loaded, char *error, size_t e
         bool completed = false;
         char due_date[LOWTASK_DUE_DATE_LENGTH + 1U];
         char text[LOWTASK_TEXT_MAX + 1U];
-        if (!split_task(line, version, &id, &priority, &completed, due_date, text) ||
-            !task_list_import(loaded, id, text, priority, completed)) {
+        char description[LOWTASK_DESCRIPTION_MAX + 1U];
+        if (!split_task(line, version, &id, &priority, &completed, due_date, text,
+                        description) ||
+            !task_list_import_full(loaded, id, text, description, priority, completed)) {
             set_error(error, error_size, "invalid task at line %zu", line_number);
             ok = false;
         } else {
@@ -165,9 +177,19 @@ bool persistence_format_load(FILE *file, TaskList *loaded, char *error, size_t e
     return ok;
 }
 
-bool persistence_format_write(FILE *file, const TaskList *list) {
-    if (fprintf(file, "LOWTASK\t3\nNEXT\t%" PRIu64 "\n", list->next_id) < 0) return false;
+static bool write_hex(FILE *file, const char *text) {
     static const char hex[] = "0123456789abcdef";
+    for (size_t offset = 0U; text[offset] != '\0'; ++offset) {
+        const unsigned char byte = (unsigned char)text[offset];
+        if (fputc(hex[byte >> 4U], file) == EOF || fputc(hex[byte & 0x0fU], file) == EOF) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool persistence_format_write(FILE *file, const TaskList *list) {
+    if (fprintf(file, "LOWTASK\t4\nNEXT\t%" PRIu64 "\n", list->next_id) < 0) return false;
     for (size_t index = 0U; index < list->length; ++index) {
         const Task *task = &list->items[index];
         const char *due_date = task->due_date[0] == '\0' ? "-" : task->due_date;
@@ -175,12 +197,10 @@ bool persistence_format_write(FILE *file, const TaskList *list) {
                     task->completed ? 1 : 0, due_date) < 0) {
             return false;
         }
-        for (size_t offset = 0U; task->text[offset] != '\0'; ++offset) {
-            const unsigned char byte = (unsigned char)task->text[offset];
-            if (fputc(hex[byte >> 4U], file) == EOF || fputc(hex[byte & 0x0fU], file) == EOF) {
-                return false;
-            }
-        }
+        if (!write_hex(file, task->text) || fputc('\t', file) == EOF) return false;
+        if (task->description == NULL) {
+            if (fputc('-', file) == EOF) return false;
+        } else if (!write_hex(file, task->description)) return false;
         if (fputc('\n', file) == EOF) return false;
     }
     return true;
@@ -197,6 +217,8 @@ bool persistence_format_state_is_valid(const TaskList *list) {
         const Task *task = &list->items[index];
         if (task->id == 0U || task->id == UINT64_MAX || task->id <= previous_id ||
             !task_text_is_valid(task->text) || !task_priority_is_valid(task->priority) ||
+            (task->description != NULL && task->description[0] == '\0') ||
+            !task_description_is_valid(task->description) ||
             (task->due_date[0] != '\0' && !task_due_date_is_valid(task->due_date))) {
             return false;
         }

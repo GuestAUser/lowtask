@@ -78,7 +78,7 @@ static void test_title_click_edits_and_still_drags(void) {
     const uint64_t revision = tasks.revision;
     click_title(&state, title);
     assert(state.mode == APP_MODE_EDIT && state.modal_task_id == id);
-    assert(strcmp(state.input, "rename me") == 0 && !state.drag_candidate);
+    assert(strcmp(state.input.value, "rename me") == 0 && !state.drag_candidate);
     controller_handle(&state, (InputEvent){.type = INPUT_KEY_ENTER});
     assert(state.mode == APP_MODE_NORMAL && tasks.revision == revision && !state.dirty);
     assert(strcmp(state.status, "task unchanged") == 0);
@@ -91,7 +91,7 @@ static void test_title_click_edits_and_still_drags(void) {
 
     state.dirty = false;
     click_title(&state, title);
-    while (state.input_length > 0U) {
+    while (state.input.length > 0U) {
         controller_handle(&state, (InputEvent){.type = INPUT_KEY_BACKSPACE});
     }
     controller_handle(&state, (InputEvent){.type = INPUT_KEY_ENTER});

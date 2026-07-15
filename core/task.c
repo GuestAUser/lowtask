@@ -8,67 +8,6 @@ bool task_priority_is_valid(TaskPriority priority) {
     return priority >= TASK_PRIORITY_LOW && priority <= TASK_PRIORITY_URGENT;
 }
 
-static size_t bounded_length(const char *text, size_t limit) {
-    size_t length = 0U;
-    if (text == NULL) {
-        return 0U;
-    }
-    while (length < limit && text[length] != '\0') {
-        ++length;
-    }
-    return length;
-}
-
-static bool utf8_valid(const unsigned char *bytes, size_t length) {
-    size_t index = 0U;
-    while (index < length) {
-        const unsigned char first = bytes[index];
-        size_t count = 0U;
-        uint32_t value = 0U;
-        if (first < 0x80U) {
-            if (first < 0x20U || first == 0x7fU) {
-                return false;
-            }
-            ++index;
-            continue;
-        }
-        if (first >= 0xc2U && first <= 0xdfU) {
-            count = 2U;
-            value = (uint32_t)(first & 0x1fU);
-        } else if (first >= 0xe0U && first <= 0xefU) {
-            count = 3U;
-            value = (uint32_t)(first & 0x0fU);
-        } else if (first >= 0xf0U && first <= 0xf4U) {
-            count = 4U;
-            value = (uint32_t)(first & 0x07U);
-        } else {
-            return false;
-        }
-        if (index + count > length) {
-            return false;
-        }
-        for (size_t offset = 1U; offset < count; ++offset) {
-            const unsigned char continuation = bytes[index + offset];
-            if ((continuation & 0xc0U) != 0x80U) {
-                return false;
-            }
-            value = (value << 6U) | (uint32_t)(continuation & 0x3fU);
-        }
-        if ((count == 3U && value < 0x800U) || (count == 4U && value < 0x10000U) ||
-            (value >= 0xd800U && value <= 0xdfffU) || value > 0x10ffffU) {
-            return false;
-        }
-        index += count;
-    }
-    return true;
-}
-
-bool task_text_is_valid(const char *text) {
-    const size_t length = bounded_length(text, LOWTASK_TEXT_MAX + 1U);
-    return length > 0U && length <= LOWTASK_TEXT_MAX &&
-           utf8_valid((const unsigned char *)text, length);
-}
-
 bool task_due_date_is_valid(const char *due_date) {
     return date_is_valid(due_date);
 }
@@ -108,19 +47,38 @@ void task_list_init(TaskList *list) {
 
 void task_list_free(TaskList *list) {
     if (list != NULL) {
+        for (size_t index = 0U; index < list->length; ++index) {
+            free(list->items[index].description);
+        }
         free(list->items);
         *list = (TaskList){.next_id = 1U};
     }
 }
 
-bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriority priority, bool completed) {
-    if (list == NULL || id == 0U || id == UINT64_MAX || !task_text_is_valid(text) ||
-        !task_priority_is_valid(priority) ||
-        (list->length > 0U && id <= list->items[list->length - 1U].id) || !reserve(list, list->length + 1U)) {
+static char *copy_description(const char *description) {
+    if (description == NULL || description[0] == '\0') return NULL;
+    const size_t length = strlen(description);
+    char *copy = malloc(length + 1U);
+    if (copy != NULL) memcpy(copy, description, length + 1U);
+    return copy;
+}
+
+bool task_list_import_full(TaskList *list, uint64_t id, const char *text,
+                           const char *description, TaskPriority priority, bool completed) {
+    if (list == NULL || id == 0U || id >= UINT64_MAX - 1U || !task_text_is_valid(text) ||
+        !task_description_is_valid(description) || !task_priority_is_valid(priority) ||
+        (list->length > 0U && id <= list->items[list->length - 1U].id)) {
+        return false;
+    }
+    char *owned_description = copy_description(description);
+    if (description != NULL && description[0] != '\0' && owned_description == NULL) return false;
+    if (!reserve(list, list->length + 1U)) {
+        free(owned_description);
         return false;
     }
     Task *task = &list->items[list->length++];
-    *task = (Task){.id = id, .priority = priority, .completed = completed};
+    *task = (Task){.id = id, .description = owned_description,
+                   .priority = priority, .completed = completed};
     const size_t length = strlen(text);
     memcpy(task->text, text, length + 1U);
     if (id >= list->next_id) {
@@ -130,9 +88,14 @@ bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriorit
     return true;
 }
 
+bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriority priority,
+                      bool completed) {
+    return task_list_import_full(list, id, text, NULL, priority, completed);
+}
+
 bool task_list_add_configured(TaskList *list, const char *text, TaskPriority priority,
                               const char *due_date, bool completed, uint64_t *id_out) {
-    if (list == NULL || list->next_id == 0U || list->next_id == UINT64_MAX) {
+    if (list == NULL || list->next_id == 0U || list->next_id >= UINT64_MAX - 1U) {
         return false;
     }
     const uint64_t id = list->next_id;
@@ -183,11 +146,30 @@ const Task *task_list_get_const(const TaskList *list, uint64_t id) {
 
 bool task_list_edit(TaskList *list, uint64_t id, const char *text) {
     Task *task = task_list_get(list, id);
-    if (task == NULL || !task_text_is_valid(text)) {
+    return task == NULL ? false : task_list_edit_fields(list, id, text, task->description);
+}
+
+bool task_list_edit_fields(TaskList *list, uint64_t id, const char *text,
+                           const char *description) {
+    Task *task = task_list_get(list, id);
+    if (task == NULL || !task_text_is_valid(text) || !task_description_is_valid(description)) {
         return false;
     }
     const size_t length = strlen(text);
-    memcpy(task->text, text, length + 1U);
+    char staged_text[LOWTASK_TEXT_MAX + 1U];
+    memcpy(staged_text, text, length + 1U);
+    const char *normalized = description != NULL && description[0] != '\0' ? description : NULL;
+    const bool description_unchanged =
+        (normalized == NULL && task->description == NULL) ||
+        (normalized != NULL && task->description != NULL &&
+         strcmp(normalized, task->description) == 0);
+    char *owned_description = description_unchanged ? task->description : copy_description(normalized);
+    if (normalized != NULL && owned_description == NULL) return false;
+    memcpy(task->text, staged_text, length + 1U);
+    if (!description_unchanged) {
+        free(task->description);
+        task->description = owned_description;
+    }
     ++list->revision;
     return true;
 }
@@ -198,11 +180,13 @@ bool task_list_delete(TaskList *list, uint64_t id) {
         return false;
     }
     const size_t index = (size_t)(task - list->items);
+    free(task->description);
     if (index + 1U < list->length) {
         memmove(&list->items[index], &list->items[index + 1U],
                 (list->length - index - 1U) * sizeof(*list->items));
     }
     --list->length;
+    if (list->length < list->capacity) list->items[list->length] = (Task){0};
     ++list->revision;
     return true;
 }

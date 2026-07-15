@@ -20,6 +20,7 @@ void test_round_trip(const char *path) {
     uint64_t second = 0U;
     assert(task_list_add(&source, "render & persist ü", TASK_PRIORITY_HIGH, &first));
     assert(task_list_add(&source, "second task", TASK_PRIORITY_LOW, &second));
+    assert(task_list_edit_fields(&source, first, source.items[0].text, "release notes"));
     assert(task_list_set_due_date(&source, first, "2026-07-11"));
     assert(task_list_toggle_complete(&source, second));
     assert(persistence_save(path, &source, error, sizeof(error)));
@@ -29,10 +30,12 @@ void test_round_trip(const char *path) {
     assert(loaded.next_id == source.next_id);
     assert(loaded.items[0].id == first);
     assert(strcmp(loaded.items[0].text, source.items[0].text) == 0);
+    assert(strcmp(loaded.items[0].description, "release notes") == 0);
     assert(loaded.items[0].priority == TASK_PRIORITY_HIGH);
     assert(strcmp(loaded.items[0].due_date, "2026-07-11") == 0);
     assert(loaded.items[1].completed);
     assert(loaded.items[1].due_date[0] == '\0');
+    assert(loaded.items[1].description == NULL);
 
     task_list_free(&loaded);
     task_list_free(&source);
@@ -60,12 +63,12 @@ void test_v3_four_priority_round_trip(const char *path) {
     assert(task_list_toggle_complete(&source, 3U));
     assert(persistence_save(path, &source, error, sizeof(error)));
     persistence_test_assert_file_bytes(path,
-                                       "LOWTASK\t3\n"
+                                        "LOWTASK\t4\n"
                                        "NEXT\t5\n"
-                                       "TASK\t1\t1\t0\t2026-07-11\t6c6f77\n"
-                                       "TASK\t2\t2\t0\t-\t6e6f726d616c\n"
-                                       "TASK\t3\t3\t1\t-\t68696768\n"
-                                       "TASK\t4\t4\t0\t2026-07-12\t757267656e74\n");
+                                        "TASK\t1\t1\t0\t2026-07-11\t6c6f77\t-\n"
+                                        "TASK\t2\t2\t0\t-\t6e6f726d616c\t-\n"
+                                        "TASK\t3\t3\t1\t-\t68696768\t-\n"
+                                        "TASK\t4\t4\t0\t2026-07-12\t757267656e74\t-\n");
     assert(persistence_load(path, &loaded, error, sizeof(error)));
     assert(loaded.length == 4U);
     for (size_t index = 0U; index < loaded.length; ++index) {

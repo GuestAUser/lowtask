@@ -54,7 +54,7 @@ static TuiViewState make_view(const AppRuntime *runtime) {
         .panel_progress = runtime->panel.value,
         .ascii = !runtime->terminal->capabilities.unicode,
         .mode = view_mode(runtime->state->mode),
-        .input = runtime->state->input,
+        .input = runtime->state->input.value,
         .status = runtime->state->status,
         .effect = view_effect(runtime->state->effect),
         .effect_index = runtime->state->effect_index,

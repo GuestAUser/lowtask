@@ -56,6 +56,7 @@ typedef struct {
     bool completed;
     char due[LOWTASK_DATE_LENGTH + 1U];
     char text[256];
+    char description[256];
 } ModelTask;
 
 typedef struct {

@@ -101,6 +101,14 @@ TuiHit tui_hit_test(size_t width, size_t height, size_t x, size_t y,
                             .action = {.type = APP_ACTION_SET_TAB, .tab = (AppTab)index}};
         }
     }
+    if (contains(layout.description_target, x, y)) {
+        const uint64_t task_id = app_state_selected_task_id(view->app);
+        if (task_id != 0U) {
+            return (TuiHit){.kind = TUI_HIT_DESCRIPTION,
+                            .action = {.type = APP_ACTION_EDIT_DESCRIPTION,
+                                       .task_id = task_id}};
+        }
+    }
     if ((view->app->drag_active || view->app->drag_candidate) && y == layout.tabs.y) {
         return (TuiHit){.action = {.type = APP_ACTION_UNAVAILABLE_TAB_TARGET}};
     }

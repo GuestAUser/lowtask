@@ -106,7 +106,7 @@ bool load_model(const char *path, Model *model) {
     *model = (Model){0};
     FILE *file = fopen(path, "rb");
     if (file == NULL) return false;
-    char line[1024];
+    char line[1200];
     bool ok = fgets(line, sizeof(line), file) != NULL &&
               sscanf(line, "LOWTASK\t%u", &model->version) == 1 &&
               fgets(line, sizeof(line), file) != NULL &&
@@ -120,10 +120,17 @@ bool load_model(const char *path, Model *model) {
         char completed[4];
         char due[16];
         char hex[600];
-        if (sscanf(line, "TASK\t%" SCNu64 "\t%d\t%3[^\t]\t%15[^\t]\t%599s",
-                   &task->id, &task->priority, completed, due, hex) != 5 ||
+        char description_hex[600] = "-";
+        const int fields = model->version == 4U ?
+            sscanf(line, "TASK\t%" SCNu64 "\t%d\t%3[^\t]\t%15[^\t]\t%599[^\t]\t%599s",
+                   &task->id, &task->priority, completed, due, hex, description_hex) :
+            sscanf(line, "TASK\t%" SCNu64 "\t%d\t%3[^\t]\t%15[^\t]\t%599s",
+                   &task->id, &task->priority, completed, due, hex);
+        if (fields != (model->version == 4U ? 6 : 5) ||
             (strcmp(completed, "0") != 0 && strcmp(completed, "1") != 0) ||
-            !hex_decode(hex, task->text, sizeof(task->text))) {
+            !hex_decode(hex, task->text, sizeof(task->text)) ||
+            (model->version == 4U && strcmp(description_hex, "-") != 0 &&
+             !hex_decode(description_hex, task->description, sizeof(task->description)))) {
             ok = false;
             break;
         }

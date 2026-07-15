@@ -1,5 +1,6 @@
 #include "tui/view_common.h"
 
+#include "core/text.h"
 #include "tui/color.h"
 
 #include <string.h>
@@ -18,26 +19,9 @@ RendererStyle tui_view_style(TuiColorToken foreground, TuiColorToken background,
 }
 
 uint32_t tui_view_decode_codepoint(const unsigned char **cursor) {
-    const unsigned char *bytes = *cursor;
-    uint32_t codepoint = bytes[0];
+    uint32_t codepoint = 0xfffdU;
     size_t count = 1U;
-    if (bytes[0] >= 0xc2U && bytes[0] <= 0xdfU) {
-        codepoint = bytes[0] & 0x1fU;
-        count = 2U;
-    } else if (bytes[0] >= 0xe0U && bytes[0] <= 0xefU) {
-        codepoint = bytes[0] & 0x0fU;
-        count = 3U;
-    } else if (bytes[0] >= 0xf0U && bytes[0] <= 0xf4U) {
-        codepoint = bytes[0] & 0x07U;
-        count = 4U;
-    }
-    for (size_t index = 1U; index < count; ++index) {
-        if (bytes[index] == '\0' || (bytes[index] & 0xc0U) != 0x80U) {
-            *cursor += 1U;
-            return 0xfffdU;
-        }
-        codepoint = (codepoint << 6U) | (uint32_t)(bytes[index] & 0x3fU);
-    }
+    (void)text_decode_utf8(*cursor, &codepoint, &count);
     *cursor += count;
     return codepoint;
 }

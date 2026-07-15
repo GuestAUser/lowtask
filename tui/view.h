@@ -70,6 +70,7 @@ typedef struct {
     TuiRect tab_targets[APP_TAB_COUNT];
     TuiRect inspector;
     TuiRect context;
+    TuiRect description_target;
     TuiRect help_overlay;
     TuiRect help_body;
     TuiRect help_close;
@@ -90,6 +91,7 @@ typedef enum {
     TUI_HIT_TAB,
     TUI_HIT_TASK,
     TUI_HIT_TASK_TITLE,
+    TUI_HIT_DESCRIPTION,
     TUI_HIT_CHECK,
     TUI_HIT_PRIORITY,
     TUI_HIT_DATE,

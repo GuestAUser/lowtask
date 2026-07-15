@@ -28,7 +28,10 @@ APP_SOURCES := \
 	app/runtime.c \
 	app/runtime_input.c \
 	core/date.c \
+	core/text.c \
+	core/text_input.c \
 	core/task.c \
+	core/task_text.c \
 	core/persistence.c \
 	core/persistence_format.c \
 	core/state.c \
@@ -54,6 +57,7 @@ APP_SOURCES := \
 	tui/view_chrome.c \
 	tui/view_rows.c \
 	tui/view_help.c \
+	tui/view_editor.c \
 	tui/view_overlay.c \
 	tui/view.c
 APP_OBJECTS := $(APP_SOURCES:%.c=build/%.o)
@@ -66,7 +70,7 @@ ifeq ($(HOST_OS_LITERAL),Darwin)
 APP_ICON_LDFLAGS := -Wl,-sectcreate,__TEXT,__lowtask_icon,$(APP_ICON)
 endif
 
-TEST_CORE_SOURCES := tests/test_core.c core/date.c core/task.c
+TEST_CORE_SOURCES := tests/test_core.c core/date.c core/text.c core/task.c core/task_text.c
 TEST_PERSISTENCE_SOURCES := \
 	tests/test_persistence.c \
 	tests/persistence_test_support.c \
@@ -77,15 +81,16 @@ TEST_PERSISTENCE_SOURCES := \
 	tests/persistence_test_preflight.c \
 	tests/persistence_test_locking.c \
 	tests/persistence_test_default_path.c \
-	core/date.c core/task.c core/persistence.c core/persistence_format.c
-TEST_UI_SOURCES := tests/test_ui.c input/input.c input/mouse_decoder.c tui/animation.c tui/color.c \
+	core/date.c core/text.c core/task.c core/task_text.c core/persistence.c core/persistence_format.c
+TEST_UI_SOURCES := tests/test_ui.c core/text.c input/input.c input/mouse_decoder.c tui/animation.c tui/color.c \
 	tui/render.c tui/text_cells.c
 TEST_PLATFORM_SOURCES := tests/test_platform.c platform/terminal.c
 TEST_MOUSE_SOURCES := tests/test_mouse.c input/input.c input/mouse_decoder.c platform/terminal.c
-TEST_VIEW_SOURCES := tests/test_view.c core/date.c core/task.c core/state.c core/view_order.c \
+TEST_VIEW_SOURCES := tests/test_view.c core/date.c core/text.c core/text_input.c core/task.c \
+	core/task_text.c core/state.c core/view_order.c \
 	core/view_sort.c tui/animation.c tui/color.c tui/layout.c tui/hit_test.c tui/render.c \
 	tui/task_geometry.c tui/text_cells.c \
-	tui/view_common.c tui/view_chrome.c tui/view_rows.c tui/view_help.c \
+	tui/view_common.c tui/view_chrome.c tui/view_rows.c tui/view_help.c tui/view_editor.c \
 	tui/view_overlay.c tui/view.c
 TEST_CONTROLLER_SOURCES := \
 	tests/test_controller.c \
@@ -101,7 +106,8 @@ TEST_CONTROLLER_SOURCES := \
 	tests/controller_test_drag_interruptions.c \
 	tests/controller_test_drag_resolution.c \
 	tests/controller_test_drag_outcomes.c \
-	core/date.c core/task.c core/state.c core/view_order.c core/view_sort.c \
+	core/date.c core/text.c core/text_input.c core/task.c core/task_text.c core/state.c \
+	core/view_order.c core/view_sort.c \
 	input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c \
 	input/controller_navigation.c input/controller_drag.c
 TEST_STATE_SOURCES := \
@@ -109,7 +115,7 @@ TEST_STATE_SOURCES := \
 	tests/state_test_support.c \
 	tests/state_test_projection.c \
 	tests/state_test_lifecycle.c \
-	core/date.c core/task.c core/state.c core/view_order.c core/view_sort.c
+	core/date.c core/text.c core/task.c core/task_text.c core/state.c core/view_order.c core/view_sort.c
 TEST_PTY_SOURCES := \
 	tests/test_pty.c \
 	tests/pty_test_runtime.c \
@@ -129,10 +135,11 @@ TEST_PTY_SOURCES := \
 	tests/pty_test_scenario_legacy_lock.c \
 	core/date.c
 
-TEST_PERFORMANCE_SOURCES := tests/test_performance.c core/date.c core/task.c core/state.c core/view_order.c \
+TEST_PERFORMANCE_SOURCES := tests/test_performance.c core/date.c core/text.c core/text_input.c core/task.c \
+	core/task_text.c core/state.c core/view_order.c \
 	core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c input/controller_navigation.c input/controller_drag.c tui/animation.c tui/color.c tui/layout.c \
 	tui/render.c tui/task_geometry.c tui/text_cells.c tui/view_common.c tui/view_chrome.c tui/view_rows.c \
-	tui/view_help.c tui/view_overlay.c tui/view.c
+	tui/view_help.c tui/view_editor.c tui/view_overlay.c tui/view.c
 
 TEST_CORE_OBJECTS := $(TEST_CORE_SOURCES:%.c=build/test-objects/%.o)
 TEST_PERSISTENCE_OBJECTS := $(TEST_PERSISTENCE_SOURCES:%.c=build/test-objects/%.o)

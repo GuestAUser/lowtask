@@ -54,10 +54,10 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `k` / `↑` | Select previous task |
 | `g` / Home | Select first task |
 | `G` / End | Select last task |
-| Tab / Shift-Tab | Select the next or previous All/Today/Upcoming/Completed view |
+| Tab / Shift-Tab | Cycle views in normal mode; switch Title/Description while editing |
 | `]` / `[` | Select the next or previous view |
 | `a` | Add a task using the active view's defaults |
-| `e` | Edit the selected task title |
+| `e` | Edit the selected task title and optional description |
 | `p` | Open the priority picker: Urgent `[4]`, High `[3]`, Normal `[2]`, Low `[1]` |
 | `s` | Open the schedule picker: Today `[1]`, Tomorrow `[2]`, +7 Days `[3]`, Custom `[4]`, Clear `[5]` |
 | `f` | Cycle priority filter: Any, Urgent, High, Normal, Low |
@@ -69,7 +69,9 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `h` / `←`, `l` / `→` | Lower or raise priority, clamped at Low and Urgent |
 | Mouse click | Select row backgrounds/tabs; edit task titles; activate checkboxes, priority/date controls, header badges, Help controls, and picker options on release inside the same target |
 | Mouse wheel | Move one visible task in normal mode; scroll three wrapped lines in Help |
-| Enter | Accept add/edit/custom-date text or the focused picker option |
+| Left / Right / Home / End | Move the cursor while editing text |
+| Backspace / Delete | Remove the previous or next visible text cluster while editing |
+| Enter | Save add/edit/custom-date text or the focused picker option |
 | Escape | Cancel text/picker input, close Help, or cancel an active drag |
 | `q` / Ctrl-C | Quit |
 
@@ -79,7 +81,7 @@ Help is a modal, responsive reference for every keyboard, mouse, picker, and dra
 
 Hover never changes keyboard selection. Primary-button actions use release-inside safety: press and release must resolve to the same row, task title, tab, checkbox, priority/date control, header badge, Help control, or picker option. A title click opens the same bounded text editor as `e`; Enter saves a changed nonempty title and Escape cancels. Releasing elsewhere cancels; right click and double click have no action. The visible `FILTER:<name>` / `SORT:<name>` badges (compact `F:<initial>` / `S:<initial>` below 64 columns) cycle forward exactly like `f` and `o`.
 
-A primary press on a task-row body or title starts a drag candidate. A title release below the two-cell drag threshold edits that title; a row-background release selects it. The checkbox, priority marker, date/compact metadata slot, and focus/hover rails remain ordinary controls and never start a drag. The candidate becomes an active drag after a two-cell Manhattan movement. Releasing on a currently visible tab performs a stable-task-ID drop:
+A primary press on a task-row body or title starts a drag candidate. A title release below the two-cell drag threshold opens the unified Title/Description editor focused on Title; a row-background release selects it. The selected `DESCRIPTION` line is a normal release-inside target that opens the same editor focused on Description and never starts a drag. The checkbox, priority marker, date/compact metadata slot, and focus/hover rails remain ordinary controls and never start a drag. The candidate becomes an active drag after a two-cell Manhattan movement. Releasing on a currently visible tab performs a stable-task-ID drop:
 
 - **All** changes only the view and selection.
 - **Today** reopens a completed task if needed, schedules it for the startup date, and activates Today.
@@ -107,7 +109,7 @@ Filter/sort changes and group-row changes are atomic and unanimated. Group heade
 
 ## Persistence
 
-Tasks are stored at `$XDG_DATA_HOME/lowtask/tasks.db`, falling back to `~/.local/share/lowtask/tasks.db`. The current version-3 plain-text format stores one bounded record per line with ID, priority `1` through `4`, completion state, optional strict Gregorian `YYYY-MM-DD` due date, and hexadecimal UTF-8 task text. Versions 1 and 2 load transparently: v1 tasks are unscheduled, while v2 retains due dates and both legacy formats retain priorities `1` through `3`. Merely loading and quitting leaves legacy bytes unchanged; the first successful task mutation marks the session dirty, and shutdown then saves the canonical v3 representation.
+Tasks are stored at `$XDG_DATA_HOME/lowtask/tasks.db`, falling back to `~/.local/share/lowtask/tasks.db`. The current version-4 plain-text format stores one bounded record per line with ID, priority `1` through `4`, completion state, optional strict Gregorian `YYYY-MM-DD` due date, hexadecimal UTF-8 title, and optional hexadecimal UTF-8 description (`-` means absent). Titles and single-line descriptions are each limited to 255 bytes. Versions 1 through 3 load transparently with no description; merely loading and quitting leaves legacy bytes unchanged. The first successful mutation marks the session dirty, and shutdown then saves canonical v4. Older lowtask binaries may reject a database after that upgrade, so back up the file before downgrading.
 
 On a dirty shutdown, saves use a mode-`0600` temporary file, file and directory `fsync`, and atomic `rename`, so an interrupted save cannot leave a partially written database. Filter, sort, active view, Help position, hover/press/drag state, and reduced-motion/ASCII choices are session or environment state and are not written to the task database.
 
@@ -115,11 +117,11 @@ One process holds an exclusive advisory lock for the lifetime of the application
 
 ## Architecture
 
-- `core/` owns the task vector, Gregorian date rules, filtered application state, validation, and atomic persistence.
+- `core/` owns the task vector and optional description lifetime, cluster-aware bounded text input, Gregorian date rules, filtered application state, validation, and atomic persistence.
 - `input/` incrementally decodes UTF-8, keyboard escape sequences, and bounded xterm SGR mouse reports, then maps semantic actions to state transitions.
 - `platform/` owns POSIX terminal raw mode, capability detection, monotonic timing, resize, and termination signals on Linux and macOS.
 - `tui/` owns semantic colors, shared draw/hit-test geometry, reusable cell buffers, diff rendering, animation tweens, and responsive presentation.
-- `tui/view.c` orchestrates each frame. `view_common.c` provides shared cell-safe drawing primitives; `view_chrome.c`, `view_rows.c`, `view_help.c`, and `view_overlay.c` own header and tab chrome, task rows and date metadata, Help layout, and transient overlays respectively.
+- `tui/view.c` orchestrates each frame. `view_common.c` provides shared cell-safe drawing primitives; `view_chrome.c`, `view_rows.c`, `view_help.c`, `view_editor.c`, and `view_overlay.c` own chrome and selected details, task rows, Help, cursor-aware text editing, and transient picker/status overlays respectively.
 - `app/runtime.c` owns the poll-driven input, animation, resize, and nonblocking render loop.
 - `main.c` is the lifecycle composition root: it resolves and locks persistence, initializes application and terminal resources, runs the runtime loop, and performs ordered shutdown and saving.
 
@@ -131,7 +133,7 @@ The task model uses an amortized O(1) growable contiguous vector. Display projec
 
 ## Responsive and accessible rendering
 
-The UI recomputes shared draw and hit-test geometry on `SIGWINCH`. Wide layouts (96+ columns) may show a passive 28-column selected-task inspector; standard layouts (64-95) show a compact selected-task context line; compact (40-63), narrow (24-39), and minimal (<24) layouts progressively remove decoration, counts, verbose dates, and frames while retaining the active view, Help target, task state, and keyboard controls. At 24-51 columns every task keeps a one-cell schedule target: `!` overdue, `=` today, `>` future, `·` unscheduled, or `x` completed. At three rows or fewer the status explicitly requests more height.
+The UI recomputes shared draw and hit-test geometry on `SIGWINCH`. Wide layouts (96+ columns) show the selected task's description in the 28-column inspector; standard layouts (64-95) use the selected context line for it. Empty descriptions appear as clickable `DESCRIPTION (none)`. Compact (40-63), narrow (24-39), and minimal (<24) layouts omit selected-description detail while retaining full keyboard editing. At 24-51 columns every task keeps a one-cell schedule target: `!` overdue, `=` today, `>` future, `·` unscheduled, or `x` completed. At three rows or fewer the status explicitly requests more height.
 
 Task text is decoded by Unicode code point into terminal cells. CJK wide glyphs consume two cells atomically, combining and zero-width format marks attach without advancing the grid, and truncation never emits half of a wide glyph or partial UTF-8 sequence. Unicode mode uses rounded borders, semantic glyphs, and a one-cell ellipsis; ASCII mode uses square borders, textual markers, and `...` only when three cells fit. Truecolor and xterm-256 modes retain non-color cues for selection, priorities, due state, completion, controls, drag targets, and errors.
 

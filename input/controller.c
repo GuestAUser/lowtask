@@ -88,7 +88,12 @@ void controller_handle_action(AppState *state, AppAction action) {
         return;
     }
     const uint64_t task_id = app_state_selected_task_id(state);
-    if (action.type == APP_ACTION_EDIT_TASK) controller_text_enter_input(state, APP_MODE_EDIT, task_id);
+    if (action.type == APP_ACTION_EDIT_TASK) {
+        controller_text_enter_editor(state, task_id, APP_EDIT_TITLE);
+    }
+    if (action.type == APP_ACTION_EDIT_DESCRIPTION) {
+        controller_text_enter_editor(state, task_id, APP_EDIT_DESCRIPTION);
+    }
     if (action.type == APP_ACTION_EDIT_SCHEDULE) {
         controller_modal_open_picker(state, APP_MODE_SCHEDULE_PICKER, task_id);
     }
@@ -113,7 +118,19 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
         return;
     }
     if (state->drag_candidate) {
-        if (event.mouse_action == INPUT_MOUSE_MOTION) controller_drag_track(state, action, event);
+        if (event.mouse_action == INPUT_MOUSE_MOTION &&
+            event.mouse_button == INPUT_MOUSE_BUTTON_LEFT) {
+            controller_drag_track(state, action, event);
+        } else if (event.mouse_action == INPUT_MOUSE_WHEEL ||
+                   event.mouse_button != INPUT_MOUSE_BUTTON_LEFT) {
+            controller_drag_clear(state, false);
+        }
+        return;
+    }
+    if (event.mouse_button != INPUT_MOUSE_BUTTON_LEFT) {
+        state->pressed_action = (AppAction){0};
+        state->hovered_action = event.mouse_action == INPUT_MOUSE_MOTION ? action :
+                                (AppAction){0};
         return;
     }
     if (state->pending_delete_id != 0U || state->effect == APP_EFFECT_DELETE) {
@@ -161,8 +178,12 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
 void controller_handle(AppState *state, InputEvent event) {
     if (!app_state_is_initialized(state) || state->quit) return;
     const uint32_t character = event.type == INPUT_KEY_CHARACTER ? event.codepoint : 0U;
+    if (event.type == INPUT_KEY_MOUSE && event.mouse_action == INPUT_MOUSE_WHEEL) {
+        controller_clear_pointer(state);
+    }
     if (event.type == INPUT_KEY_INTERRUPT) {
         if (state->drag_active || state->drag_candidate) controller_drag_clear(state, false);
+        if (state->mode != APP_MODE_NORMAL) controller_modal_reset(state);
         app_state_finish_pending_delete(state);
         state->quit = true;
         return;
@@ -180,8 +201,11 @@ void controller_handle(AppState *state, InputEvent event) {
         }
         return;
     }
-    if (state->drag_candidate && event.type != INPUT_KEY_MOUSE) controller_drag_clear(state, false);
-    if (character == '?' && state->mode != APP_MODE_NORMAL && state->mode != APP_MODE_HELP) {
+    if (state->drag_candidate &&
+        (event.type != INPUT_KEY_MOUSE || event.mouse_action == INPUT_MOUSE_WHEEL ||
+         event.mouse_button != INPUT_MOUSE_BUTTON_LEFT)) controller_drag_clear(state, false);
+    if (character == '?' && (state->mode == APP_MODE_PRIORITY_PICKER ||
+                             state->mode == APP_MODE_SCHEDULE_PICKER)) {
         controller_set_status(state, "help unavailable while input or delete is pending");
         return;
     }
@@ -203,8 +227,15 @@ void controller_handle(AppState *state, InputEvent event) {
         controller_set_status(state, "cancelled");
     } else if (event.type == INPUT_KEY_ENTER) {
         controller_text_submit(state);
-    } else if (event.type == INPUT_KEY_BACKSPACE || event.type == INPUT_KEY_DELETE) {
+    } else if (event.type == INPUT_KEY_TAB || event.type == INPUT_KEY_BACKTAB) {
+        controller_text_switch_field(state, event.type == INPUT_KEY_BACKTAB);
+    } else if (event.type == INPUT_KEY_LEFT || event.type == INPUT_KEY_RIGHT ||
+               event.type == INPUT_KEY_HOME || event.type == INPUT_KEY_END) {
+        controller_text_move(state, event.type);
+    } else if (event.type == INPUT_KEY_BACKSPACE) {
         controller_text_remove_character(state);
+    } else if (event.type == INPUT_KEY_DELETE) {
+        controller_text_delete_character(state);
     } else if (event.type == INPUT_KEY_CHARACTER) {
         controller_text_append_character(state, event.codepoint);
     }

@@ -35,7 +35,7 @@ bool scenario_contextual_creation_and_title_edit(void) {
     CHECK(local_dates(today, tomorrow, next_week, future, overdue),
           "context dates unavailable");
     Model model;
-    CHECK(load_model(session.state_path, &model) && model.version == 3U &&
+    CHECK(load_model(session.state_path, &model) && model.version == 4U &&
           model.next_id == 5U && model.count == 4U,
           "context model unreadable");
     const ModelTask *all = model_task(&model, 1U);

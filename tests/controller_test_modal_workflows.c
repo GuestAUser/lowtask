@@ -15,7 +15,7 @@ static void test_schedule_editing(void) {
     controller_handle(&state, controller_test_character('s'));
     assert(state.mode == APP_MODE_SCHEDULE_PICKER);
     controller_handle(&state, controller_test_character('4'));
-    assert(state.mode == APP_MODE_SCHEDULE && state.input_length == 0U);
+    assert(state.mode == APP_MODE_SCHEDULE && state.input.length == 0U);
     const char *date = "2026-07-12";
     for (size_t index = 0U; date[index] != '\0'; ++index) {
         controller_handle(&state, controller_test_character((uint32_t)date[index]));
@@ -27,7 +27,7 @@ static void test_schedule_editing(void) {
     state.dirty = false;
     controller_handle(&state, controller_test_character('s'));
     controller_handle(&state, controller_test_character('4'));
-    assert(strcmp(state.input, date) == 0);
+    assert(strcmp(state.input.value, date) == 0);
     for (size_t index = 0U; index < LOWTASK_DUE_DATE_LENGTH; ++index) {
         controller_handle(&state, (InputEvent){.type = INPUT_KEY_BACKSPACE});
     }

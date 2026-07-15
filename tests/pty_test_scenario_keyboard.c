@@ -74,7 +74,7 @@ bool scenario_keyboard_workflow(void) {
     CHECK(session_quit(&session), "production reload quit failed");
 
     Model model;
-    CHECK(load_model(session.state_path, &model) && model.version == 3U && model.next_id == 10U &&
+    CHECK(load_model(session.state_path, &model) && model.version == 4U && model.next_id == 10U &&
           model.count == 9U,
           "keyboard persisted model unreadable");
     const ModelTask *added = model_task(&model, 9U);

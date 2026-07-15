@@ -200,9 +200,20 @@ bool tui_layout_compute(size_t width, size_t height, const TuiViewState *view, T
             --layout->inspector.x;
             layout->rows.width -= 29U;
         } else if (width >= TUI_STANDARD_COLUMNS && width < TUI_WIDE_COLUMNS &&
-                   layout->panel_framed) {
+                    layout->panel_framed) {
             layout->context = (TuiRect){.x = layout->rows.x, .y = layout->panel.y,
                                         .width = layout->rows.width, .height = 1U};
+        }
+        const Task *selected = app_state_selected_task_const(view->app);
+        if (view->app->mode == APP_MODE_NORMAL && view->mode == TUI_MODE_NORMAL &&
+            selected != NULL && selected->id != view->app->pending_delete_id) {
+            if (layout->inspector.width > 4U && layout->inspector.height > 3U) {
+                layout->description_target = (TuiRect){.x = layout->inspector.x + 2U,
+                    .y = layout->inspector.y + 3U, .width = layout->inspector.width - 4U,
+                    .height = 1U};
+            } else if (layout->context.width > 0U) {
+                layout->description_target = layout->context;
+            }
         }
         layout->visible_rows = layout->rows.height;
         const size_t count = app_state_display_row_count(view->app, layout->visible_rows);

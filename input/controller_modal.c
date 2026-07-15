@@ -8,8 +8,9 @@ void controller_modal_reset(AppState *state) {
     state->mode = APP_MODE_NORMAL;
     state->modal_task_id = 0U;
     state->focused_option = 0U;
-    state->input[0] = '\0';
-    state->input_length = 0U;
+    app_text_input_clear(&state->input);
+    app_text_input_clear(&state->description_input);
+    state->edit_field = APP_EDIT_TITLE;
     controller_clear_pointer(state);
 }
 

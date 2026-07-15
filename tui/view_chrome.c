@@ -161,9 +161,19 @@ void tui_view_draw_header(Renderer *renderer, const TuiLayout *layout,
 }
 
 void tui_view_draw_selected_context(Renderer *renderer, const TuiLayout *layout,
-                                    const TuiViewState *view) {
+                                     const TuiViewState *view) {
     const Task *task = app_state_selected_task_const(view->app);
     if (task == NULL) return;
+    char description[LOWTASK_DESCRIPTION_MAX + 32U];
+    (void)snprintf(description, sizeof(description), "DESCRIPTION %s",
+                   task->description == NULL ? "(none)" : task->description);
+    const AppAction description_action = {
+        .type = APP_ACTION_EDIT_DESCRIPTION, .task_id = task->id,
+    };
+    const bool description_hovered =
+        tui_view_action_equal(view->app->hovered_action, description_action);
+    const bool description_pressed =
+        tui_view_action_equal(view->app->pressed_action, description_action);
     if (layout->inspector.width > 0U) {
         renderer_fill(renderer, layout->inspector.x, layout->inspector.y,
                       layout->inspector.width, layout->inspector.height, ' ',
@@ -178,6 +188,21 @@ void tui_view_draw_selected_context(Renderer *renderer, const TuiLayout *layout,
                                    layout->inspector.width - 4U, view->ascii,
                                    tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED,
                                                   RENDER_ATTR_BOLD));
+        }
+        if (layout->description_target.width > 0U) {
+            const TuiColorToken background = description_pressed ? TUI_COLOR_PRESSED :
+                                             (description_hovered ? TUI_COLOR_HOVER :
+                                                                    TUI_COLOR_RAISED);
+            renderer_fill(renderer, layout->description_target.x,
+                          layout->description_target.y, layout->description_target.width, 1U,
+                          ' ', tui_view_style(TUI_COLOR_TEXT_MUTED, background,
+                                              RENDER_ATTR_NONE));
+            tui_view_put_truncated(renderer, layout->description_target.x,
+                                   layout->description_target.y, description,
+                                   layout->description_target.width, view->ascii,
+                                   tui_view_style(description_hovered ? TUI_COLOR_ACCENT :
+                                                                       TUI_COLOR_TEXT_MUTED,
+                                                  background, RENDER_ATTR_NONE));
         }
         if (layout->inspector.height > 4U) {
             static const char *const priorities[] = {"", "LOW", "NORMAL", "HIGH", "URGENT"};
@@ -200,12 +225,18 @@ void tui_view_draw_selected_context(Renderer *renderer, const TuiLayout *layout,
                          tui_view_style(label[0] == '\0' ? TUI_COLOR_TEXT_MUTED : token,
                                         TUI_COLOR_RAISED, attributes));
         }
-    } else if (layout->context.width > 0U) {
-        char context[256];
-        (void)snprintf(context, sizeof(context), " SELECTED: %.240s", task->text);
-        tui_view_put_truncated(renderer, layout->context.x, layout->context.y, context,
-                               layout->context.width, view->ascii,
-                               tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_PANEL,
-                                              RENDER_ATTR_DIM));
+    } else if (layout->description_target.width > 0U) {
+        const TuiColorToken background = description_pressed ? TUI_COLOR_PRESSED :
+                                         (description_hovered ? TUI_COLOR_HOVER :
+                                                                TUI_COLOR_PANEL);
+        renderer_fill(renderer, layout->description_target.x, layout->description_target.y,
+                      layout->description_target.width, 1U, ' ',
+                      tui_view_style(TUI_COLOR_TEXT_MUTED, background, RENDER_ATTR_NONE));
+        tui_view_put_truncated(renderer, layout->description_target.x,
+                               layout->description_target.y, description,
+                               layout->description_target.width, view->ascii,
+                               tui_view_style(description_hovered ? TUI_COLOR_ACCENT :
+                                                                   TUI_COLOR_TEXT_MUTED,
+                                              background, RENDER_ATTR_DIM));
     }
 }

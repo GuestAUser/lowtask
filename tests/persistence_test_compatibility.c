@@ -78,8 +78,8 @@ void test_canonical_legacy_dirty_save(const char *path) {
     assert(task_list_edit(&loaded, 1U, "legacy!"));
     assert(persistence_save(path, &loaded, error, sizeof(error)));
     persistence_test_assert_file_bytes(path,
-                                       "LOWTASK\t3\nNEXT\t2\n"
-                                       "TASK\t1\t3\t0\t-\t6c656761637921\n");
+                                        "LOWTASK\t4\nNEXT\t2\n"
+                                        "TASK\t1\t3\t0\t-\t6c656761637921\t-\n");
 
     persistence_test_write_bytes(path, v2);
     assert(persistence_load(path, &loaded, error, sizeof(error)));
@@ -87,8 +87,8 @@ void test_canonical_legacy_dirty_save(const char *path) {
     assert(task_list_edit(&loaded, 1U, "old-date!"));
     assert(persistence_save(path, &loaded, error, sizeof(error)));
     persistence_test_assert_file_bytes(path,
-                                       "LOWTASK\t3\nNEXT\t2\n"
-                                       "TASK\t1\t1\t1\t2026-07-11\t6f6c642d6461746521\n");
+                                        "LOWTASK\t4\nNEXT\t2\n"
+                                        "TASK\t1\t1\t1\t2026-07-11\t6f6c642d6461746521\t-\n");
 
     task_list_free(&loaded);
 }

@@ -2,6 +2,7 @@
 #define LOWTASK_CORE_STATE_H
 
 #include "core/task.h"
+#include "core/text_input.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -16,6 +17,11 @@ typedef enum {
     APP_MODE_SCHEDULE_PICKER,
     APP_MODE_HELP
 } AppMode;
+
+typedef enum {
+    APP_EDIT_TITLE = 0,
+    APP_EDIT_DESCRIPTION
+} AppEditField;
 
 typedef enum {
     APP_TAB_ALL = 0,
@@ -92,6 +98,7 @@ typedef enum {
     APP_ACTION_SELECT_TASK,
     APP_ACTION_ADD_TASK,
     APP_ACTION_EDIT_TASK,
+    APP_ACTION_EDIT_DESCRIPTION,
     APP_ACTION_EDIT_SCHEDULE,
     APP_ACTION_TOGGLE_TASK,
     APP_ACTION_DELETE_TASK,
@@ -154,8 +161,9 @@ typedef struct AppState {
     AppMode mode;
     uint64_t modal_task_id;
     size_t focused_option;
-    char input[LOWTASK_TEXT_MAX + 1U];
-    size_t input_length;
+    AppTextInput input;
+    AppTextInput description_input;
+    AppEditField edit_field;
     float list_scroll;
     size_t help_scroll;
     size_t help_line_count;

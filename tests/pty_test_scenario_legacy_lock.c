@@ -17,9 +17,9 @@ bool scenario_legacy(const char *contents, const char *visible_title) {
           "legacy dirty mutation failed");
     CHECK(session_quit(&session), "legacy quit failed");
     Model model;
-    CHECK(load_model(session.state_path, &model) && model.version == 3U && model.count == 1U &&
+    CHECK(load_model(session.state_path, &model) && model.version == 4U && model.count == 1U &&
           model.tasks[0].text[strlen(model.tasks[0].text) - 1U] == '!',
-          "legacy dirty write did not canonicalize v3");
+          "legacy dirty write did not canonicalize v4");
     CHECK(session_cleanup(&session), "legacy session cleanup failed");
     return true;
 }

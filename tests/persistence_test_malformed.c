@@ -42,16 +42,18 @@ void test_strict_version_headers_and_rows(const char *path) {
     char error[256];
     task_list_init(&loaded);
 
-    persistence_test_write_bytes(path, "LOWTASK\t3\nNEXT\t2\nTASK\t1\t4\t0\t-\t757267656e74\n");
+    persistence_test_write_bytes(path,
+        "LOWTASK\t4\nNEXT\t2\nTASK\t1\t4\t0\t-\t757267656e74\t6e6f7465\n");
     assert(persistence_load(path, &loaded, error, sizeof(error)));
     assert(loaded.length == 1U);
     assert(loaded.items[0].priority == TASK_PRIORITY_URGENT);
     assert(strcmp(loaded.items[0].text, "urgent") == 0);
+    assert(strcmp(loaded.items[0].description, "note") == 0);
     task_list_free(&loaded);
 
     expect_rejected(path, "LOWTASK\t0\nNEXT\t1\n");
     expect_rejected(path, "LOWTASK\t01\nNEXT\t1\n");
-    expect_rejected(path, "LOWTASK\t4\nNEXT\t1\n");
+    expect_rejected(path, "LOWTASK\t5\nNEXT\t1\n");
     expect_rejected(path, "LOWTASK\t3 \nNEXT\t1\n");
     expect_rejected(path, "LOWTASK\t1\nNEXT\t2\nTASK\t1\t2\t0\t-\t61\n");
     expect_rejected(path, "LOWTASK\t2\nNEXT\t2\nTASK\t1\t2\t0\t61\n");

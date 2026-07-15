@@ -98,52 +98,6 @@ void tui_view_draw_picker(Renderer *renderer, const TuiLayout *layout,
     }
 }
 
-void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
-    if (view->mode == TUI_MODE_NORMAL || view->mode == TUI_MODE_PRIORITY_PICKER ||
-        view->mode == TUI_MODE_SCHEDULE_PICKER || view->mode == TUI_MODE_HELP ||
-        renderer->height < 4U) return;
-    if (renderer->width < 12U || renderer->height < 5U) {
-        renderer_fill(renderer, 0U, renderer->height - 2U, renderer->width, 1U, ' ',
-                      tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
-        const char *input = view->input != NULL ? view->input : "";
-        const size_t input_cells = renderer->width > 3U ? renderer->width - 3U : 0U;
-        const char *visible_input = tui_view_suffix_that_fits(input, input_cells);
-        tui_view_put(renderer, 1U, renderer->height - 2U, visible_input, input_cells,
-                     tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
-        const size_t cursor = tui_view_display_cells(visible_input);
-        tui_view_put(renderer, 1U + cursor, renderer->height - 2U,
-                     view->ascii ? "_" : "▏", 1U,
-                     tui_view_style(TUI_COLOR_ACCENT_STRONG, TUI_COLOR_RAISED,
-                                    RENDER_ATTR_BOLD));
-        return;
-    }
-    const size_t width = renderer->width > TUI_STANDARD_COLUMNS ? TUI_MODAL_MAX_COLUMNS :
-                         renderer->width - 4U;
-    const TuiRect modal = {.x = (renderer->width - width) / 2U,
-                           .y = renderer->height / 2U - 1U,
-                           .width = width,
-                           .height = 3U};
-    renderer_fill(renderer, modal.x, modal.y, modal.width, modal.height, ' ',
-                  tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
-    tui_view_draw_box(renderer, modal, view->ascii,
-                      tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_RAISED, RENDER_ATTR_BOLD));
-    const char *title = view->mode == TUI_MODE_ADD ? " ADD TASK " :
-                        (view->mode == TUI_MODE_EDIT ? " EDIT TASK " :
-                                                       " SCHEDULE TASK ");
-    tui_view_put(renderer, modal.x + 2U, modal.y, title, modal.width - 4U,
-                 tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_RAISED, RENDER_ATTR_BOLD));
-    const char *input = view->input != NULL ? view->input : "";
-    const size_t input_cells = modal.width > 5U ? modal.width - 5U : 0U;
-    const char *visible_input = tui_view_suffix_that_fits(input, input_cells);
-    tui_view_put(renderer, modal.x + 2U, modal.y + 1U, visible_input, input_cells,
-                 tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
-    const size_t cursor = tui_view_display_cells(visible_input);
-    tui_view_put(renderer, modal.x + 2U + cursor, modal.y + 1U,
-                 view->ascii ? "_" : "▏", 1U,
-                 tui_view_style(TUI_COLOR_ACCENT_STRONG, TUI_COLOR_RAISED,
-                                RENDER_ATTR_BOLD));
-}
-
 static bool status_is_error(const char *message) {
     return message != NULL &&
            (strstr(message, "must be") != NULL || strstr(message, "cannot") != NULL ||
@@ -190,7 +144,11 @@ void tui_view_draw_status(Renderer *renderer, const TuiLayout *layout,
     }
     tui_view_put(renderer, 0U, layout->status.y, summary, renderer->width, message_style);
     if (renderer->width < TUI_STANDARD_COLUMNS) return;
-    const char *keys = "a add  e edit  s date  space done  Tab views  q quit ";
+    const char *keys = view->app->mode == APP_MODE_EDIT ?
+        "Left/Right move  Tab fields  Enter save  Esc cancel " :
+        (view->app->mode == APP_MODE_ADD || view->app->mode == APP_MODE_SCHEDULE ?
+         "Left/Right move  Enter save  Esc cancel " :
+         "a add  e edit  s date  space done  Tab views  q quit ");
     const size_t length = strlen(keys);
     const size_t summary_length = tui_view_display_cells(summary);
     if (length < renderer->width && renderer->width - length > summary_length) {

@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #define LOWTASK_TEXT_MAX 255U
+#define LOWTASK_DESCRIPTION_MAX 255U
 #define LOWTASK_DUE_DATE_LENGTH LOWTASK_DATE_LENGTH
 #define LOWTASK_MAX_TASKS 1000000U
 
@@ -22,6 +23,7 @@ typedef struct {
     uint64_t id;
     char text[LOWTASK_TEXT_MAX + 1U];
     char due_date[LOWTASK_DUE_DATE_LENGTH + 1U];
+    char *description;
     TaskPriority priority;
     bool completed;
 } Task;
@@ -37,13 +39,18 @@ typedef struct {
 void task_list_init(TaskList *list);
 void task_list_free(TaskList *list);
 bool task_text_is_valid(const char *text);
+bool task_description_is_valid(const char *description);
 bool task_due_date_is_valid(const char *due_date);
 bool task_priority_is_valid(TaskPriority priority);
 bool task_list_add(TaskList *list, const char *text, TaskPriority priority, uint64_t *id_out);
 bool task_list_add_configured(TaskList *list, const char *text, TaskPriority priority,
                               const char *due_date, bool completed, uint64_t *id_out);
 bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriority priority, bool completed);
+bool task_list_import_full(TaskList *list, uint64_t id, const char *text,
+                           const char *description, TaskPriority priority, bool completed);
 bool task_list_edit(TaskList *list, uint64_t id, const char *text);
+bool task_list_edit_fields(TaskList *list, uint64_t id, const char *text,
+                           const char *description);
 bool task_list_delete(TaskList *list, uint64_t id);
 bool task_list_toggle_complete(TaskList *list, uint64_t id);
 bool task_list_set_priority(TaskList *list, uint64_t id, TaskPriority priority);

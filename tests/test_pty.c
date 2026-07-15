@@ -40,7 +40,7 @@ int main(void) {
     printf("test_pty: scenarios=keyboard,context-add,title-edit,header-mouse,help,picker,modal,drag,animation,reduced,legacy-v1,legacy-v2,lock,signals bytes=%zu csi=%zu\n",
            evidence->transcript_bytes, evidence->csi_count);
     puts("test_pty: geometry=96x24,24x8 resize=help,picker,drag split-sgr=yes malformed-sgr=yes");
-    puts("test_pty: persistence=exact-v3 dynamic-dates=yes lock-unchanged=yes sigterm-save=yes");
+    puts("test_pty: persistence=exact-v4 dynamic-dates=yes lock-unchanged=yes sigterm-save=yes");
     puts("test_pty: termios=restored children=all-reaped temp=clean core-dumps=disabled");
     puts("test_pty: PASS");
     return 0;
