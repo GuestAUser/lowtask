@@ -53,6 +53,13 @@ static void draw_input_line(Renderer *renderer, size_t x, size_t y, size_t width
     }
 }
 
+static void draw_field_label(Renderer *renderer, size_t x, size_t y, size_t width,
+                             const char *label, bool focused) {
+    tui_view_put(renderer, x, y, label, width,
+                 tui_view_style(focused ? TUI_COLOR_ACCENT : TUI_COLOR_TEXT_MUTED,
+                                TUI_COLOR_RAISED, focused ? RENDER_ATTR_BOLD : RENDER_ATTR_DIM));
+}
+
 void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     if (view->mode == TUI_MODE_NORMAL || view->mode == TUI_MODE_PRIORITY_PICKER ||
         view->mode == TUI_MODE_SCHEDULE_PICKER || view->mode == TUI_MODE_HELP ||
@@ -64,7 +71,7 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     const AppTextInput *title = live_input ? &view->app->input : &fallback;
     const AppTextInput *description = &view->app->description_input;
     const bool editing = view->mode == TUI_MODE_EDIT;
-    if (renderer->width < 12U || renderer->height < (editing ? 7U : 5U)) {
+    if (renderer->width < 12U || renderer->height < (editing ? 9U : 5U)) {
         renderer_fill(renderer, 0U, renderer->height - 2U, renderer->width, 1U, ' ',
                        tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
         const bool description_focus = editing &&
@@ -76,7 +83,7 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     }
     const size_t width = renderer->width > TUI_STANDARD_COLUMNS ? TUI_MODAL_MAX_COLUMNS :
                          renderer->width - 4U;
-    const size_t modal_height = editing ? 5U : 3U;
+    const size_t modal_height = editing ? 7U : 3U;
     const size_t desired_y = renderer->height / 2U - 1U;
     const size_t maximum_y = renderer->height - 1U - modal_height;
     const TuiRect modal = {.x = (renderer->width - width) / 2U,
@@ -96,13 +103,17 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
                         "", title, true, view->ascii);
         return;
     }
-    draw_input_line(renderer, modal.x + 2U, modal.y + 1U, content_width,
-                    view->app->edit_field == APP_EDIT_TITLE ? "> TITLE  " : "  TITLE  ",
-                    title, view->app->edit_field == APP_EDIT_TITLE, view->ascii);
+    const bool title_focus = view->app->edit_field == APP_EDIT_TITLE;
+    draw_field_label(renderer, modal.x + 2U, modal.y + 1U, content_width,
+                     view->ascii ? "TITLE / REQUIRED" : "TITLE · REQUIRED", title_focus);
     draw_input_line(renderer, modal.x + 2U, modal.y + 2U, content_width,
-                    view->app->edit_field == APP_EDIT_DESCRIPTION ? "> DESC   " : "  DESC   ",
-                    description, view->app->edit_field == APP_EDIT_DESCRIPTION, view->ascii);
-    tui_view_put(renderer, modal.x + 2U, modal.y + 3U,
+                    title_focus ? "> " : "  ", title, title_focus, view->ascii);
+    draw_field_label(renderer, modal.x + 2U, modal.y + 3U, content_width,
+                     view->ascii ? "DESCRIPTION / OPTIONAL" : "DESCRIPTION · OPTIONAL",
+                     !title_focus);
+    draw_input_line(renderer, modal.x + 2U, modal.y + 4U, content_width,
+                    title_focus ? "  " : "> ", description, !title_focus, view->ascii);
+    tui_view_put(renderer, modal.x + 2U, modal.y + 5U,
                  "Tab fields  Enter save  Esc cancel", content_width,
                  tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_RAISED, RENDER_ATTR_DIM));
 }

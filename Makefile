@@ -48,6 +48,7 @@ APP_SOURCES := \
 	platform/terminal.c \
 	tui/animation.c \
 	tui/color.c \
+	tui/detail_geometry.c \
 	tui/layout.c \
 	tui/hit_test.c \
 	tui/render.c \
@@ -55,6 +56,7 @@ APP_SOURCES := \
 	tui/text_cells.c \
 	tui/view_common.c \
 	tui/view_chrome.c \
+	tui/view_details.c \
 	tui/view_rows.c \
 	tui/view_help.c \
 	tui/view_editor.c \
@@ -88,9 +90,9 @@ TEST_PLATFORM_SOURCES := tests/test_platform.c platform/terminal.c
 TEST_MOUSE_SOURCES := tests/test_mouse.c input/input.c input/mouse_decoder.c platform/terminal.c
 TEST_VIEW_SOURCES := tests/test_view.c core/date.c core/text.c core/text_input.c core/task.c \
 	core/task_text.c core/state.c core/view_order.c \
-	core/view_sort.c tui/animation.c tui/color.c tui/layout.c tui/hit_test.c tui/render.c \
+	core/view_sort.c tui/animation.c tui/color.c tui/detail_geometry.c tui/layout.c tui/hit_test.c tui/render.c \
 	tui/task_geometry.c tui/text_cells.c \
-	tui/view_common.c tui/view_chrome.c tui/view_rows.c tui/view_help.c tui/view_editor.c \
+	tui/view_common.c tui/view_chrome.c tui/view_details.c tui/view_rows.c tui/view_help.c tui/view_editor.c \
 	tui/view_overlay.c tui/view.c
 TEST_CONTROLLER_SOURCES := \
 	tests/test_controller.c \
@@ -137,8 +139,8 @@ TEST_PTY_SOURCES := \
 
 TEST_PERFORMANCE_SOURCES := tests/test_performance.c core/date.c core/text.c core/text_input.c core/task.c \
 	core/task_text.c core/state.c core/view_order.c \
-	core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c input/controller_navigation.c input/controller_drag.c tui/animation.c tui/color.c tui/layout.c \
-	tui/render.c tui/task_geometry.c tui/text_cells.c tui/view_common.c tui/view_chrome.c tui/view_rows.c \
+	core/view_sort.c input/controller.c input/controller_modal.c input/controller_text.c input/controller_help.c input/controller_navigation.c input/controller_drag.c tui/animation.c tui/color.c tui/detail_geometry.c tui/layout.c \
+	tui/render.c tui/task_geometry.c tui/text_cells.c tui/view_common.c tui/view_chrome.c tui/view_details.c tui/view_rows.c \
 	tui/view_help.c tui/view_editor.c tui/view_overlay.c tui/view.c
 
 TEST_CORE_OBJECTS := $(TEST_CORE_SOURCES:%.c=build/test-objects/%.o)

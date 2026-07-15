@@ -595,7 +595,7 @@ static void test_motion_and_large_list(void) {
     tui_draw(&renderer, &tasks, &view);
     assert(screen_contains(&renderer, "task 9999"));
     assert(screen_hash(&renderer) != scroll_start_hash);
-    view.scroll = 9981.0F;
+    view.scroll = (float)(state.selected + 1U - focus_layout.visible_rows);
     assert(tui_layout_compute(80U, 24U, &view, &focus_layout));
     assert(!focus_layout.selection_pinned);
 

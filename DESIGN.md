@@ -116,6 +116,12 @@ even when they are individually well implemented.
 - Responsive degradation removes decoration before information or controls.
   The active mode, selected task state, status, and keyboard path stay available
   at every supported size.
+- Selected-task details use a stable label/body/action hierarchy. Descriptions
+  wrap on terminal-cell boundaries within a bounded detail region; compact
+  layouts remove that region before changing one-line task rows.
+- Interactive detail regions share one rectangle for drawing, hover/press
+  feedback, and release-inside hit testing. Empty content remains an explicit,
+  actionable state rather than a blank area.
 - Keyboard operation is complete without pointer input. Hover does not steal
   keyboard selection, and pointer actions use press-and-release target safety.
 - Motion communicates a bounded state change. It never loops, delays an atomic
