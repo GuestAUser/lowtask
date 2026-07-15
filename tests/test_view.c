@@ -439,6 +439,12 @@ static void test_modal_cjk_cursor_and_meaningful_motion(void) {
         .app = &state, .panel_progress = 1.0F, .mode = TUI_MODE_EDIT,
         .input = "中a", .effect = TUI_EFFECT_ADD,
     };
+    state.mode = APP_MODE_ADD;
+    view.mode = TUI_MODE_ADD;
+    tui_draw(&renderer, &tasks, &view);
+    assert(screen_contains(&renderer, "DESCRIPTION · OPTIONAL"));
+    state.mode = APP_MODE_NORMAL;
+    view.mode = TUI_MODE_EDIT;
     tui_draw(&renderer, &tasks, &view);
     const size_t cursor_x = glyph_x(&renderer, renderer.height / 2U, "▏");
     const size_t input_x = glyph_x(&renderer, renderer.height / 2U, "中");

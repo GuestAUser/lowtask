@@ -98,15 +98,6 @@ static void compute_tabs(size_t width, size_t height, const TuiViewState *view, 
     }
 }
 
-size_t tui_task_display_row(const AppState *state, uint64_t task_id, size_t viewport_rows) {
-    const size_t count = app_state_display_row_count(state, viewport_rows);
-    for (size_t row = 0U; row < count; ++row) {
-        const AppDisplayRow display = app_state_display_row(state, row, viewport_rows);
-        if (display.kind == APP_DISPLAY_ROW_TASK && display.task_id == task_id) return row;
-    }
-    return SIZE_MAX;
-}
-
 static void compute_overlay_geometry(size_t width, size_t height, const TuiViewState *view,
                                      TuiLayout *layout) {
     if (view->app->mode == APP_MODE_HELP || view->mode == TUI_MODE_HELP) {

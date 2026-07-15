@@ -127,9 +127,10 @@ bool app_state_cycle_sort(AppState *state) {
 
 static size_t selected_entry_index(const AppState *state) {
     if (!app_state_is_initialized(state) || state->selected_task_id == 0U) return SIZE_MAX;
-    for (size_t index = 0U; index < state->entry_count; ++index) {
+    if (state->selected < state->entry_count &&
+        state->entries[state->selected].task_id == state->selected_task_id) return state->selected;
+    for (size_t index = 0U; index < state->entry_count; ++index)
         if (state->entries[index].task_id == state->selected_task_id) return index;
-    }
     return SIZE_MAX;
 }
 

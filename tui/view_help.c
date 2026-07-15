@@ -1,4 +1,5 @@
 #include "tui/view_common.h"
+#include "tui/text_wrap.h"
 
 #include <string.h>
 
@@ -18,7 +19,7 @@ static const HelpGroup help_groups[] = {
      "Keys: j/Down and k/Up select next/previous; g/Home and G/End select first/last; Tab/Shift-Tab and [/] cycle the four views.",
      "Mouse: Row-body release selects; tab release activates; wheel moves one visible task and does not activate a task or tab."},
     {"Add and edit",
-     "Keys: a adds with active-view defaults; e edits Title and optional Description. Arrows/Home/End move the cursor, Backspace/Delete edit clusters, Tab switches fields, Enter saves both, and Escape cancels.",
+     "Keys: a composes Title and optional Description with active-view defaults; e edits both. Arrows/Home/End move the cursor, Backspace/Delete edit clusters, Tab switches fields, Enter saves, and Escape cancels.",
      "Mouse: Task-title release opens Title; selected DESCRIPTION or DESCRIPTION (none) opens Description. Outside clicks do not submit or dismiss input."},
     {"Completion and deletion",
      "Keys: Space or x completes/reopens; d or Delete starts deletion. q or Ctrl-C commits a pending deletion immediately before quit.",
@@ -46,40 +47,16 @@ static const HelpGroup help_groups[] = {
 static void help_add_wrapped(HelpVisualLine *lines, size_t capacity, size_t *count,
                              const char *text, size_t width, bool title) {
     if (width == 0U || *count >= capacity) return;
-    const char *cursor = text;
-    while (*cursor != '\0' && *count < capacity) {
-        while (*cursor == ' ') ++cursor;
-        const unsigned char *scan = (const unsigned char *)cursor;
-        const unsigned char *last_space = NULL;
-        size_t cells = 0U;
-        while (*scan != '\0') {
-            const unsigned char *before = scan;
-            const uint32_t codepoint = tui_view_decode_codepoint(&scan);
-            const size_t cell_width = renderer_codepoint_width(codepoint);
-            if (cell_width > width - cells) {
-                scan = before;
-                break;
-            }
-            cells += cell_width;
-            if (codepoint == ' ') last_space = before;
-        }
-        const unsigned char *end = scan;
-        if (*scan != '\0' && last_space != NULL && last_space > (const unsigned char *)cursor) {
-            end = last_space;
-        }
-        if (end == (const unsigned char *)cursor) {
-            end = scan;
-            if (end == (const unsigned char *)cursor) ++end;
-        }
-        size_t bytes = (size_t)(end - (const unsigned char *)cursor);
-        while (bytes > 0U && cursor[bytes - 1U] == ' ') --bytes;
+    TuiTextWrap wrap;
+    tui_text_wrap_init(&wrap, text, width);
+    TuiTextLine wrapped;
+    while (*count < capacity && tui_text_wrap_next(&wrap, &wrapped)) {
+        size_t bytes = wrapped.bytes;
         if (bytes >= sizeof(lines[*count].text)) bytes = sizeof(lines[*count].text) - 1U;
-        memcpy(lines[*count].text, cursor, bytes);
+        memcpy(lines[*count].text, wrapped.text, bytes);
         lines[*count].text[bytes] = '\0';
         lines[*count].title = title;
         ++*count;
-        cursor = (const char *)end;
-        while (*cursor == ' ') ++cursor;
     }
 }
 

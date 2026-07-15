@@ -1,5 +1,27 @@
 #include "tui/view.h"
 
+size_t tui_task_display_row(const AppState *state, uint64_t task_id, size_t viewport_rows) {
+    if (!app_state_is_initialized(state) || task_id == 0U) return SIZE_MAX;
+    size_t ordinal = SIZE_MAX;
+    if (state->selected < state->entry_count &&
+        state->entries[state->selected].task_id == task_id) {
+        ordinal = state->selected;
+    } else {
+        for (size_t index = 0U; index < state->entry_count; ++index) {
+            if (state->entries[index].task_id == task_id) {
+                ordinal = index;
+                break;
+            }
+        }
+    }
+    if (ordinal == SIZE_MAX || viewport_rows < 2U || state->group_count == 0U) return ordinal;
+    size_t preceding_headers = 0U;
+    for (size_t index = 0U; index < state->group_count; ++index) {
+        if (state->groups[index].first_task <= ordinal) ++preceding_headers;
+    }
+    return ordinal + preceding_headers;
+}
+
 void tui_task_title_bounds(const TuiViewState *view, const TuiLayout *layout,
                            uint64_t task_id, size_t visible_index,
                            size_t *title_x, size_t *title_width) {

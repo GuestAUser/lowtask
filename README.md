@@ -54,9 +54,9 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `k` / `↑` | Select previous task |
 | `g` / Home | Select first task |
 | `G` / End | Select last task |
-| Tab / Shift-Tab | Cycle views in normal mode; switch Title/Description while editing |
+| Tab / Shift-Tab | Cycle views in normal mode; switch Title/Description while adding or editing |
 | `]` / `[` | Select the next or previous view |
-| `a` | Add a task using the active view's defaults |
+| `a` | Compose a title and optional description using the active view's defaults |
 | `e` | Edit the selected task title and optional description |
 | `p` | Open the priority picker: Urgent `[4]`, High `[3]`, Normal `[2]`, Low `[1]` |
 | `s` | Open the schedule picker: Today `[1]`, Tomorrow `[2]`, +7 Days `[3]`, Custom `[4]`, Clear `[5]` |
@@ -97,6 +97,8 @@ There is no drag-based row reordering. A hidden tab or unavailable date target c
 The active view is applied first, then the session-only priority filter, then the session-only sort. Neither the active view, filter, nor sort is persisted; each launch starts in All / Any / Smart. Selection is tracked by stable task ID and retained across a projection change when that task remains visible.
 
 New tasks inherit the active temporal view so they remain in the section where they were created: **All** creates an incomplete unscheduled task, **Today** creates an incomplete task due on the startup date, **Upcoming** creates an incomplete task due tomorrow, and **Completed** creates a completed unscheduled task. New tasks still start at Normal priority. If the startup date is unavailable, creation from Today or Upcoming is refused without changing task data; All and Completed remain available.
+
+The add composer submits Title and optional Description atomically. Tab or Shift-Tab switches fields, so a task can be fully described at creation without a second edit pass.
 
 - **Smart / All**: incomplete overdue, due today, future scheduled, unscheduled, then completed. Scheduled buckets use due date ascending, priority descending, ID ascending; unscheduled tasks use priority descending then ID ascending; completed tasks use ID descending.
 - **Smart / Today**: due date ascending, priority descending, ID ascending, with nonselectable `OVERDUE` and `DUE TODAY` group headers when both the data and viewport permit.

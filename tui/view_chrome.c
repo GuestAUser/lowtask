@@ -107,21 +107,30 @@ static const char *sort_name(AppSort sort) {
     return sort >= APP_SORT_SMART && sort < APP_SORT_COUNT ? names[sort] : "?";
 }
 
+static TuiRect control_surface(TuiRect target) {
+    if (target.width > 2U) {
+        ++target.x;
+        --target.width;
+    }
+    return target;
+}
+
 static void draw_control(Renderer *renderer, TuiRect target, const char *label,
-                         AppAction action, const AppState *app) {
+                          AppAction action, const AppState *app) {
     if (target.width == 0U) return;
+    const TuiRect surface = control_surface(target);
     const bool hovered = tui_view_action_equal(app->hovered_action, action);
     const bool pressed = tui_view_action_equal(app->pressed_action, action);
     const TuiColorToken background = pressed ? TUI_COLOR_PRESSED :
-                                     (hovered ? TUI_COLOR_HOVER : TUI_COLOR_CANVAS);
-    renderer_fill(renderer, target.x, target.y, target.width, target.height, ' ',
-                  tui_view_style(TUI_COLOR_TEXT_MUTED, background, RENDER_ATTR_NONE));
+                                     (hovered ? TUI_COLOR_HOVER : TUI_COLOR_RAISED);
+    renderer_fill(renderer, surface.x, surface.y, surface.width, surface.height, ' ',
+                  tui_view_style(TUI_COLOR_DATE, background, RENDER_ATTR_NONE));
     const size_t label_width = tui_view_display_cells(label);
-    const size_t x = target.x +
-                     (target.width > label_width ? (target.width - label_width) / 2U : 0U);
-    tui_view_put(renderer, x, target.y, label, target.width,
+    const size_t x = surface.x +
+                     (surface.width > label_width ? (surface.width - label_width) / 2U : 0U);
+    tui_view_put(renderer, x, surface.y, label, surface.width,
                  tui_view_style(pressed ? TUI_COLOR_ACCENT_STRONG :
-                                (hovered ? TUI_COLOR_ACCENT : TUI_COLOR_TEXT_MUTED),
+                                (hovered ? TUI_COLOR_ACCENT : TUI_COLOR_DATE),
                                 background,
                                 pressed || hovered ? RENDER_ATTR_BOLD : RENDER_ATTR_NONE));
 }
@@ -147,15 +156,14 @@ void tui_view_draw_header(Renderer *renderer, const TuiLayout *layout,
                  renderer->width >= TUI_STANDARD_COLUMNS ? "HELP" : "?",
                  (AppAction){.type = APP_ACTION_OPEN_HELP}, view->app);
     if (view->app->mode != APP_MODE_HELP && view->mode != TUI_MODE_HELP) return;
-    renderer_fill(renderer, layout->help_target.x, layout->help_target.y,
-                  layout->help_target.width, 1U, ' ',
+    const TuiRect surface = control_surface(layout->help_target);
+    renderer_fill(renderer, surface.x, surface.y, surface.width, 1U, ' ',
                   tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_SELECTED, RENDER_ATTR_BOLD));
     const char *label = renderer->width >= TUI_STANDARD_COLUMNS ? "HELP" : "?";
     const size_t label_width = strlen(label);
     tui_view_put(renderer,
-                 layout->help_target.x +
-                     (layout->help_target.width > label_width ?
-                      (layout->help_target.width - label_width) / 2U : 0U),
-                 layout->help_target.y, label, layout->help_target.width,
+                 surface.x + (surface.width > label_width ?
+                              (surface.width - label_width) / 2U : 0U),
+                 surface.y, label, surface.width,
                  tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_SELECTED, RENDER_ATTR_BOLD));
 }

@@ -93,22 +93,37 @@ bool task_list_import(TaskList *list, uint64_t id, const char *text, TaskPriorit
     return task_list_import_full(list, id, text, NULL, priority, completed);
 }
 
-bool task_list_add_configured(TaskList *list, const char *text, TaskPriority priority,
-                              const char *due_date, bool completed, uint64_t *id_out) {
+bool task_list_add_configured(TaskList *list, const char *text, const char *description,
+                              TaskPriority priority, const char *due_date, bool completed,
+                              uint64_t *id_out) {
     if (list == NULL || list->next_id == 0U || list->next_id >= UINT64_MAX - 1U) {
         return false;
     }
     const uint64_t id = list->next_id;
-    if (!task_text_is_valid(text) || !task_priority_is_valid(priority) ||
-        (due_date != NULL && due_date[0] != '\0' && !task_due_date_is_valid(due_date)) ||
-        !reserve(list, list->length + 1U)) {
+    if (!task_text_is_valid(text) || !task_description_is_valid(description) ||
+        !task_priority_is_valid(priority) ||
+        (due_date != NULL && due_date[0] != '\0' && !task_due_date_is_valid(due_date))) {
+        return false;
+    }
+    const size_t text_length = strlen(text);
+    char staged_text[LOWTASK_TEXT_MAX + 1U];
+    memcpy(staged_text, text, text_length + 1U);
+    char staged_due_date[LOWTASK_DUE_DATE_LENGTH + 1U] = {0};
+    if (due_date != NULL && due_date[0] != '\0') {
+        memcpy(staged_due_date, due_date, sizeof(staged_due_date));
+    }
+    char *owned_description = copy_description(description);
+    if (description != NULL && description[0] != '\0' && owned_description == NULL) return false;
+    if (!reserve(list, list->length + 1U)) {
+        free(owned_description);
         return false;
     }
     Task *task = &list->items[list->length++];
-    *task = (Task){.id = id, .priority = priority, .completed = completed};
-    memcpy(task->text, text, strlen(text) + 1U);
-    if (due_date != NULL && due_date[0] != '\0') {
-        memcpy(task->due_date, due_date, LOWTASK_DUE_DATE_LENGTH + 1U);
+    *task = (Task){.id = id, .description = owned_description,
+                   .priority = priority, .completed = completed};
+    memcpy(task->text, staged_text, text_length + 1U);
+    if (staged_due_date[0] != '\0') {
+        memcpy(task->due_date, staged_due_date, sizeof(staged_due_date));
     }
     list->next_id = id + 1U;
     ++list->revision;
@@ -117,7 +132,7 @@ bool task_list_add_configured(TaskList *list, const char *text, TaskPriority pri
 }
 
 bool task_list_add(TaskList *list, const char *text, TaskPriority priority, uint64_t *id_out) {
-    return task_list_add_configured(list, text, priority, NULL, false, id_out);
+    return task_list_add_configured(list, text, NULL, priority, NULL, false, id_out);
 }
 
 Task *task_list_get(TaskList *list, uint64_t id) {

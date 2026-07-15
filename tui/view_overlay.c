@@ -80,7 +80,7 @@ void tui_view_draw_picker(Renderer *renderer, const TuiLayout *layout,
         const bool pressed = tui_view_action_equal(view->app->pressed_action, action);
         const TuiColorToken background = pressed ? TUI_COLOR_PRESSED :
                                          (focused ? TUI_COLOR_SELECTED :
-                                         (hovered ? TUI_COLOR_HOVER : TUI_COLOR_RAISED));
+                                         (hovered ? TUI_COLOR_HOVER : TUI_COLOR_PANEL));
         renderer_fill(renderer, option.x, option.y, option.width, 1U, ' ',
                       tui_view_style(TUI_COLOR_TEXT, background,
                                      focused ? RENDER_ATTR_BOLD : 0U));
@@ -146,14 +146,16 @@ void tui_view_draw_status(Renderer *renderer, const TuiLayout *layout,
     if (renderer->width < TUI_STANDARD_COLUMNS) return;
     const char *keys = view->app->mode == APP_MODE_EDIT ?
         "Left/Right move  Tab fields  Enter save  Esc cancel " :
-        (view->app->mode == APP_MODE_ADD || view->app->mode == APP_MODE_SCHEDULE ?
+        (view->app->mode == APP_MODE_ADD ?
+         "Left/Right move  Tab fields  Enter add  Esc cancel " :
+        (view->app->mode == APP_MODE_SCHEDULE ?
          "Left/Right move  Enter save  Esc cancel " :
-         "a add  e edit  s date  space done  Tab views  q quit ");
+         "a add  e edit  s date  space done  Tab views  q quit "));
     const size_t length = strlen(keys);
     const size_t summary_length = tui_view_display_cells(summary);
     if (length < renderer->width && renderer->width - length > summary_length) {
         tui_view_put(renderer, renderer->width - length, layout->status.y, keys, length,
-                     tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_RAISED,
-                                    RENDER_ATTR_DIM));
+                     tui_view_style(TUI_COLOR_DATE, TUI_COLOR_RAISED,
+                                    RENDER_ATTR_NONE));
     }
 }

@@ -1,6 +1,6 @@
 #include "tui/detail_geometry.h"
 
-#include <string.h>
+#include "tui/text_wrap.h"
 
 static void inspector_description(TuiLayout *layout) {
     if (layout->inspector.width <= 4U || layout->inspector.height <= 3U) return;
@@ -17,10 +17,10 @@ static void inspector_description(TuiLayout *layout) {
 static void standard_description(const Task *selected, TuiLayout *layout) {
     if (!layout->panel_framed || layout->rows.height < 4U) return;
     const size_t content_width = layout->rows.width > 2U ? layout->rows.width - 2U : 1U;
-    const size_t bytes = selected->description == NULL ? 0U : strlen(selected->description);
-    const size_t body_rows = bytes == 0U ? 1U :
-                             (bytes + content_width - 1U) / content_width;
-    size_t detail_height = body_rows + 1U + (body_rows > 1U ? 1U : 0U);
+    size_t body_rows = selected->description == NULL ? 1U :
+                       tui_text_wrap_count(selected->description, content_width);
+    if (body_rows == 0U) body_rows = 1U;
+    size_t detail_height = body_rows + 1U;
     const size_t maximum = layout->rows.height / 2U;
     if (detail_height > maximum) detail_height = maximum;
     if (detail_height < 2U) detail_height = 2U;

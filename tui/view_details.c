@@ -1,51 +1,28 @@
 #include "tui/view_common.h"
+#include "tui/text_wrap.h"
 
 #include <stdio.h>
 #include <string.h>
 
-static const char *wrapped_end(const char *start, size_t width) {
-    const unsigned char *cursor = (const unsigned char *)start;
-    const unsigned char *last_space = NULL;
-    size_t cells = 0U;
-    while (*cursor != '\0') {
-        const unsigned char *before = cursor;
-        const uint32_t codepoint = tui_view_decode_codepoint(&cursor);
-        const size_t cell_width = renderer_codepoint_width(codepoint);
-        if (cell_width > width - cells) {
-            cursor = before;
-            break;
-        }
-        cells += cell_width;
-        if (codepoint == ' ') last_space = before;
-    }
-    if (*cursor != '\0' && last_space != NULL && last_space > (const unsigned char *)start) {
-        return (const char *)last_space;
-    }
-    if (cursor == (const unsigned char *)start && *cursor != '\0') {
-        (void)tui_view_decode_codepoint(&cursor);
-    }
-    return (const char *)cursor;
-}
-
 static void draw_wrapped(Renderer *renderer, TuiRect area, const char *text, bool ascii,
                          RendererStyle style) {
-    const char *cursor = text;
-    for (size_t row = 0U; row < area.height && *cursor != '\0'; ++row) {
-        while (*cursor == ' ') ++cursor;
-        if (*cursor == '\0') break;
+    if (area.width == 0U) return;
+    TuiTextWrap wrap;
+    tui_text_wrap_init(&wrap, text, area.width);
+    for (size_t row = 0U; row < area.height; ++row) {
+        const char *remaining = tui_text_wrap_remaining(&wrap);
+        if (*remaining == '\0') break;
         if (row + 1U == area.height) {
-            tui_view_put_truncated(renderer, area.x, area.y + row, cursor, area.width,
+            tui_view_put_truncated(renderer, area.x, area.y + row, remaining, area.width,
                                    ascii, style);
             break;
         }
-        const char *end = wrapped_end(cursor, area.width);
-        size_t bytes = (size_t)(end - cursor);
-        while (bytes > 0U && cursor[bytes - 1U] == ' ') --bytes;
+        TuiTextLine wrapped;
+        if (!tui_text_wrap_next(&wrap, &wrapped)) break;
         char line[LOWTASK_DESCRIPTION_MAX + 1U];
-        memcpy(line, cursor, bytes);
-        line[bytes] = '\0';
+        memcpy(line, wrapped.text, wrapped.bytes);
+        line[wrapped.bytes] = '\0';
         tui_view_put(renderer, area.x, area.y + row, line, area.width, style);
-        cursor = end;
     }
 }
 
@@ -79,13 +56,20 @@ static void draw_description(Renderer *renderer, const TuiLayout *layout,
     }
     tui_view_put(renderer, target.x + 2U, target.y, "DESCRIPTION",
                  target.width > 2U ? target.width - 2U : 0U,
-                 tui_view_style(hovered ? TUI_COLOR_ACCENT : TUI_COLOR_TEXT_MUTED,
+                 tui_view_style(hovered ? TUI_COLOR_ACCENT : TUI_COLOR_DATE,
                                 background, RENDER_ATTR_BOLD));
-    if (target.width >= 18U) {
-        tui_view_put(renderer, target.x + target.width - 4U, target.y, "EDIT", 4U,
-                     tui_view_style(hovered || pressed ? TUI_COLOR_ACCENT_STRONG :
-                                                           TUI_COLOR_TEXT_MUTED,
-                                    background, RENDER_ATTR_BOLD));
+    if (target.width >= 20U) {
+        const size_t button_x = target.x + target.width - 6U;
+        const TuiColorToken button_background = pressed ? TUI_COLOR_PRESSED :
+                                                (hovered ? TUI_COLOR_HOVER :
+                                                 (layout->inspector.width > 0U ?
+                                                  TUI_COLOR_PANEL : TUI_COLOR_RAISED));
+        renderer_fill(renderer, button_x, target.y, 6U, 1U, ' ',
+                      tui_view_style(TUI_COLOR_DATE, button_background, RENDER_ATTR_BOLD));
+        tui_view_put(renderer, button_x, target.y, "[EDIT]", 6U,
+                     tui_view_style(pressed ? TUI_COLOR_ACCENT_STRONG :
+                                    (hovered ? TUI_COLOR_ACCENT : TUI_COLOR_DATE),
+                                    button_background, RENDER_ATTR_BOLD));
     }
     const TuiRect body = {.x = target.x + 2U, .y = target.y + 1U,
                           .width = target.width > 2U ? target.width - 2U : 0U,
@@ -96,7 +80,7 @@ static void draw_description(Renderer *renderer, const TuiLayout *layout,
                                       "(none) · select EDIT to add";
     draw_wrapped(renderer, body, content, view->ascii,
                  tui_view_style(empty ? TUI_COLOR_TEXT_MUTED : TUI_COLOR_TEXT,
-                                background, empty ? RENDER_ATTR_DIM : RENDER_ATTR_NONE));
+                                background, RENDER_ATTR_NONE));
 }
 
 static void draw_inspector(Renderer *renderer, const TuiLayout *layout,

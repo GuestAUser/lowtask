@@ -16,7 +16,8 @@ static bool contextual_due_date(const AppState *state,
 }
 
 static AppTextInput *focused_input(AppState *state) {
-    return state->mode == APP_MODE_EDIT && state->edit_field == APP_EDIT_DESCRIPTION ?
+    return (state->mode == APP_MODE_ADD || state->mode == APP_MODE_EDIT) &&
+           state->edit_field == APP_EDIT_DESCRIPTION ?
            &state->description_input : &state->input;
 }
 
@@ -64,12 +65,17 @@ void controller_text_enter_input(AppState *state, AppMode mode, uint64_t task_id
 }
 
 void controller_text_switch_field(AppState *state, bool backwards) {
-    if (state->mode != APP_MODE_EDIT) return;
+    if (state->mode != APP_MODE_ADD && state->mode != APP_MODE_EDIT) return;
     (void)backwards;
     state->edit_field = state->edit_field == APP_EDIT_TITLE ?
                         APP_EDIT_DESCRIPTION : APP_EDIT_TITLE;
-    controller_set_status(state, state->edit_field == APP_EDIT_TITLE ?
-                          "editing title" : "editing description");
+    if (state->mode == APP_MODE_ADD) {
+        controller_set_status(state, state->edit_field == APP_EDIT_TITLE ?
+                              "adding title" : "adding description");
+    } else {
+        controller_set_status(state, state->edit_field == APP_EDIT_TITLE ?
+                              "editing title" : "editing description");
+    }
 }
 
 void controller_text_move(AppState *state, InputKeyType key) {
@@ -84,7 +90,7 @@ void controller_text_append_character(AppState *state, uint32_t codepoint) {
     if (!app_text_input_insert(focused_input(state), codepoint)) {
         controller_set_status(state, state->mode == APP_MODE_SCHEDULE ?
                               "enter a valid date (YYYY-MM-DD)" :
-                              (state->mode == APP_MODE_EDIT &&
+                              ((state->mode == APP_MODE_ADD || state->mode == APP_MODE_EDIT) &&
                                state->edit_field == APP_EDIT_DESCRIPTION ?
                                "description limit reached" : "task text limit reached"));
     }
@@ -126,7 +132,8 @@ static void submit_add(AppState *state) {
         return;
     }
     uint64_t task_id = 0U;
-    if (!task_list_add_configured(state->tasks, state->input.value, TASK_PRIORITY_NORMAL,
+    if (!task_list_add_configured(state->tasks, state->input.value,
+                                  state->description_input.value, TASK_PRIORITY_NORMAL,
                                   due_date, state->tab == APP_TAB_COMPLETED, &task_id)) {
         controller_set_status(state, "unable to add task");
         return;

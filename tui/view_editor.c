@@ -57,7 +57,7 @@ static void draw_field_label(Renderer *renderer, size_t x, size_t y, size_t widt
                              const char *label, bool focused) {
     tui_view_put(renderer, x, y, label, width,
                  tui_view_style(focused ? TUI_COLOR_ACCENT : TUI_COLOR_TEXT_MUTED,
-                                TUI_COLOR_RAISED, focused ? RENDER_ATTR_BOLD : RENDER_ATTR_DIM));
+                                TUI_COLOR_RAISED, focused ? RENDER_ATTR_BOLD : RENDER_ATTR_NONE));
 }
 
 void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
@@ -70,12 +70,12 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
                             view->app->mode == APP_MODE_SCHEDULE;
     const AppTextInput *title = live_input ? &view->app->input : &fallback;
     const AppTextInput *description = &view->app->description_input;
-    const bool editing = view->mode == TUI_MODE_EDIT;
-    if (renderer->width < 12U || renderer->height < (editing ? 9U : 5U)) {
+    const bool task_fields = view->mode == TUI_MODE_ADD || view->mode == TUI_MODE_EDIT;
+    if (renderer->width < 12U || renderer->height < (task_fields ? 9U : 5U)) {
         renderer_fill(renderer, 0U, renderer->height - 2U, renderer->width, 1U, ' ',
                        tui_view_style(TUI_COLOR_TEXT, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
-        const bool description_focus = editing &&
-                                       view->app->edit_field == APP_EDIT_DESCRIPTION;
+        const bool description_focus = task_fields &&
+                                        view->app->edit_field == APP_EDIT_DESCRIPTION;
         draw_input_line(renderer, 0U, renderer->height - 2U, renderer->width,
                         description_focus ? "D> " : "T> ",
                         description_focus ? description : title, true, view->ascii);
@@ -83,7 +83,7 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     }
     const size_t width = renderer->width > TUI_STANDARD_COLUMNS ? TUI_MODAL_MAX_COLUMNS :
                          renderer->width - 4U;
-    const size_t modal_height = editing ? 7U : 3U;
+    const size_t modal_height = task_fields ? 7U : 3U;
     const size_t desired_y = renderer->height / 2U - 1U;
     const size_t maximum_y = renderer->height - 1U - modal_height;
     const TuiRect modal = {.x = (renderer->width - width) / 2U,
@@ -98,7 +98,7 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     tui_view_put(renderer, modal.x + 2U, modal.y, heading, modal.width - 4U,
                  tui_view_style(TUI_COLOR_ACCENT, TUI_COLOR_RAISED, RENDER_ATTR_BOLD));
     const size_t content_width = modal.width > 4U ? modal.width - 4U : 0U;
-    if (!editing) {
+    if (!task_fields) {
         draw_input_line(renderer, modal.x + 2U, modal.y + 1U, content_width,
                         "", title, true, view->ascii);
         return;
@@ -114,6 +114,8 @@ void tui_view_draw_modal(Renderer *renderer, const TuiViewState *view) {
     draw_input_line(renderer, modal.x + 2U, modal.y + 4U, content_width,
                     title_focus ? "  " : "> ", description, !title_focus, view->ascii);
     tui_view_put(renderer, modal.x + 2U, modal.y + 5U,
-                 "Tab fields  Enter save  Esc cancel", content_width,
-                 tui_view_style(TUI_COLOR_TEXT_MUTED, TUI_COLOR_RAISED, RENDER_ATTR_DIM));
+                 view->mode == TUI_MODE_ADD ? "Tab fields  Enter add   Esc cancel" :
+                                             "Tab fields  Enter save  Esc cancel",
+                 content_width,
+                 tui_view_style(TUI_COLOR_DATE, TUI_COLOR_RAISED, RENDER_ATTR_NONE));
 }
