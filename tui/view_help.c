@@ -16,7 +16,7 @@ typedef struct {
 static const HelpGroup help_groups[] = {
     {"Navigation and views",
      "Keys: j/Down and k/Up select next/previous; g/Home and G/End select first/last; Tab/Shift-Tab and [/] cycle the four views.",
-     "Mouse: Row-body release selects; tab release activates; wheel moves three visible tasks and does not activate a task or tab."},
+     "Mouse: Row-body release selects; tab release activates; wheel moves one visible task and does not activate a task or tab."},
     {"Add and edit",
      "Keys: a adds with active-view defaults, e edits the selected title, Enter accepts changed nonempty text, Escape cancels, and q/Ctrl-C quits.",
      "Mouse: Task-title release opens Edit; outside clicks do not submit or dismiss text input."},

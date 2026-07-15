@@ -68,7 +68,7 @@ Run the regression suite with `make test`, verify installation behavior with `./
 | `1`, `2`, `3`, `4` | Set Low, Normal, High, or Urgent priority directly in normal mode |
 | `h` / `←`, `l` / `→` | Lower or raise priority, clamped at Low and Urgent |
 | Mouse click | Select row backgrounds/tabs; edit task titles; activate checkboxes, priority/date controls, header badges, Help controls, and picker options on release inside the same target |
-| Mouse wheel | Move three visible tasks in normal mode; scroll three wrapped lines in Help |
+| Mouse wheel | Move one visible task in normal mode; scroll three wrapped lines in Help |
 | Enter | Accept add/edit/custom-date text or the focused picker option |
 | Escape | Cancel text/picker input, close Help, or cancel an active drag |
 | `q` / Ctrl-C | Quit |
