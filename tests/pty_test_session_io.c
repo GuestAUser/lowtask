@@ -57,7 +57,10 @@ bool session_wait(Session *session, const char *needle, int64_t timeout_ms) {
     for (;;) {
         if (pty_test_interrupted() || !session_read(session, &closed) ||
             !child_poll_status(&session->child)) return false;
-        if (screen_contains(&session->screen, needle)) return true;
+        if (screen_contains(&session->screen, needle)) {
+            const int64_t matched_at = monotonic_milliseconds();
+            return matched_at >= 0 && session_settle(session, deadline - matched_at);
+        }
         if (closed || session->child.reaped) return false;
         const int64_t now = monotonic_milliseconds();
         if (now < 0 || now >= deadline) return false;
@@ -78,11 +81,13 @@ bool session_settle(Session *session, int64_t timeout_ms) {
         if (closed || session->child.reaped) return true;
         const int64_t now = monotonic_milliseconds();
         if (now < 0) return false;
-        if (now >= deadline) return true;
+        if (now >= deadline) return session->screen.parser_state == 0U &&
+                                    session->screen.utf8_needed == 0U;
         struct pollfd input = {.fd = session->master, .events = POLLIN};
         const int remaining = (int)(deadline - now);
         const int ready = poll(&input, 1U, remaining > QUIET_MS ? QUIET_MS : remaining);
-        if (ready == 0) return true;
+        if (ready == 0 && session->screen.parser_state == 0U &&
+            session->screen.utf8_needed == 0U) return true;
         if (ready < 0 && errno != EINTR) return false;
     }
 }

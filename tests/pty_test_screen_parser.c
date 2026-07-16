@@ -13,10 +13,6 @@ bool screen_resize(Screen *screen, size_t columns, size_t rows) {
     screen->rows = rows;
     screen->column = 0U;
     screen->row = 0U;
-    screen->parser_state = 0U;
-    screen->csi_length = 0U;
-    screen->utf8_length = 0U;
-    screen->utf8_needed = 0U;
     return true;
 }
 
