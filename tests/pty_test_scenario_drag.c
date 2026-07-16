@@ -11,8 +11,8 @@ bool scenario_drag_normal(void) {
     pty_test_record_drag_startup(transcript_hash(&session.transcript));
 
     size_t source_x = 0U, source_y = 0U, target_x = 0U, target_y = 0U;
-    CHECK(screen_find_row_title(&session.screen, "overdue urgent alpha", &source_x, &source_y) &&
-          screen_find_ascii(&session.screen, "COMPLETED", &target_x, &target_y),
+    CHECK(session_wait_tab(&session, "COMPLETED", &target_x, &target_y) &&
+          screen_find_row_title(&session.screen, "overdue urgent alpha", &source_x, &source_y),
           "normal drag geometry missing");
     size_t offset = session.transcript.length;
     CHECK(mouse_event(&session, 0U, source_x + 8U, source_y, 'M') && session_settle(&session, 150),
@@ -49,8 +49,8 @@ bool scenario_drag_normal(void) {
           "authoritative no-motion far release failed");
     CHECK(set_all_tab(&session), "All after far release failed");
 
-    CHECK(screen_find_row_title(&session.screen, "future normal gamma", &source_x, &source_y) &&
-          screen_find_ascii(&session.screen, "COMPLETED", &target_x, &target_y),
+    CHECK(session_wait_tab(&session, "COMPLETED", &target_x, &target_y) &&
+          screen_find_row_title(&session.screen, "future normal gamma", &source_x, &source_y),
           "changed-target geometry missing");
     offset = session.transcript.length;
     CHECK(mouse_event(&session, 0U, source_x + 8U, source_y, 'M') &&
@@ -59,7 +59,7 @@ bool scenario_drag_normal(void) {
           session_settle(&session, 180),
           "changed-target press/motion failed");
     size_t today_x = 0U, today_y = 0U;
-    CHECK(screen_find_ascii(&session.screen, "TODAY", &today_x, &today_y) &&
+    CHECK(session_wait_tab(&session, "TODAY", &today_x, &today_y) &&
           mouse_event(&session, 0U, today_x + 2U, today_y, 'm') &&
           session_wait(&session, "moved to Today", SESSION_DEADLINE_MS),
           "release target was not authoritative");
@@ -100,8 +100,8 @@ bool scenario_drag_normal(void) {
           "height/width-hidden target did not reject");
     CHECK(session_resize_pty(&session, 96U, 24U), "drag resize restore failed");
 
-    CHECK(screen_find_row_title(&session.screen, "unscheduled low delta", &first_x, &first_y) &&
-          screen_find_ascii(&session.screen, "COMPLETED", &target_x, &target_y),
+    CHECK(session_wait_tab(&session, "COMPLETED", &target_x, &target_y) &&
+          screen_find_row_title(&session.screen, "unscheduled low delta", &first_x, &first_y),
           "cancel drag geometry missing");
     CHECK(mouse_event(&session, 0U, first_x + 8U, first_y, 'M') &&
           mouse_event(&session, 32U, target_x + 2U, target_y, 'M') &&

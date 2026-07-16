@@ -38,23 +38,31 @@ bool screen_contains(const Screen *screen, const char *needle) {
     return false;
 }
 
-bool screen_find_ascii(const Screen *screen, const char *needle, size_t *x, size_t *y) {
+bool screen_find_ascii_row(const Screen *screen, size_t row, const char *needle, size_t *x) {
+    if (row >= screen->rows) return false;
     const size_t length = strlen(needle);
+    for (size_t column = 0U; column + length <= screen->columns; ++column) {
+        bool match = true;
+        for (size_t offset = 0U; offset < length; ++offset) {
+            const ScreenCell *cell = &screen->cells[row * screen->columns + column + offset];
+            if (cell->glyph[0] != needle[offset] || cell->glyph[1] != '\0') {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            *x = column;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool screen_find_ascii(const Screen *screen, const char *needle, size_t *x, size_t *y) {
     for (size_t row = 0U; row < screen->rows; ++row) {
-        for (size_t column = 0U; column + length <= screen->columns; ++column) {
-            bool match = true;
-            for (size_t offset = 0U; offset < length; ++offset) {
-                const ScreenCell *cell = &screen->cells[row * screen->columns + column + offset];
-                if (cell->glyph[0] != needle[offset] || cell->glyph[1] != '\0') {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
-                *x = column;
-                *y = row;
-                return true;
-            }
+        if (screen_find_ascii_row(screen, row, needle, x)) {
+            *y = row;
+            return true;
         }
     }
     return false;

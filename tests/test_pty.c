@@ -29,6 +29,20 @@ static bool resize_preserves_split_csi(void) {
     return preserved;
 }
 
+static bool tab_lookup_ignores_other_rows(void) {
+    Screen screen = {0};
+    static const char obscured[] = "\x1b[2;1HA#L\x1b[3;1HALL";
+    static const char visible[] = "\x1b[2;1HALL";
+    if (!screen_resize(&screen, 8U, 3U)) return false;
+    screen_feed(&screen, obscured, sizeof(obscured) - 1U);
+    size_t x = 0U;
+    const bool ignored = !screen_find_ascii_row(&screen, 1U, "ALL", &x);
+    screen_feed(&screen, visible, sizeof(visible) - 1U);
+    const bool found = screen_find_ascii_row(&screen, 1U, "ALL", &x) && x == 0U;
+    free(screen.cells);
+    return ignored && found;
+}
+
 static bool wait_drains_current_frame(void) {
     int descriptors[2];
     if (pipe(descriptors) != 0) return false;
@@ -56,6 +70,7 @@ static bool wait_drains_current_frame(void) {
               screen_contains(&session.screen, "done");
     terminate_and_reap(&session.child);
     (void)close(session.master);
+    free(session.transcript.bytes);
     free(session.screen.cells);
     return ok;
 }
@@ -68,10 +83,13 @@ int main(void) {
         return 1;
     }
     const bool resize_sync = resize_preserves_split_csi();
+    const bool tab_sync = tab_lookup_ignores_other_rows();
     const bool wait_sync = wait_drains_current_frame();
-    if (!resize_sync || !wait_sync) {
-        fprintf(stderr, "test_pty: FAIL: PTY harness frame synchronization resize=%s wait=%s\n",
-                resize_sync ? "yes" : "no", wait_sync ? "yes" : "no");
+    if (!resize_sync || !tab_sync || !wait_sync) {
+        fprintf(stderr,
+                "test_pty: FAIL: PTY harness frame synchronization resize=%s tab=%s wait=%s\n",
+                resize_sync ? "yes" : "no", tab_sync ? "yes" : "no",
+                wait_sync ? "yes" : "no");
         return 1;
     }
     bool ok = scenario_keyboard_workflow() && scenario_contextual_creation_and_title_edit() &&

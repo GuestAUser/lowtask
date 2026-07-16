@@ -120,6 +120,7 @@ void screen_feed(Screen *screen, const char *bytes, size_t length);
 void screen_dump(const Screen *screen);
 bool screen_contains(const Screen *screen, const char *needle);
 bool screen_find_ascii(const Screen *screen, const char *needle, size_t *x, size_t *y);
+bool screen_find_ascii_row(const Screen *screen, size_t row, const char *needle, size_t *x);
 bool screen_find_row_title(const Screen *screen, const char *needle, size_t *x, size_t *y);
 uint32_t screen_hash(const Screen *screen);
 
@@ -160,6 +161,7 @@ bool session_cleanup(Session *session);
 bool mouse_event(Session *session, unsigned int encoded, size_t x, size_t y, char final);
 bool mouse_click(Session *session, size_t x, size_t y);
 bool click_label(Session *session, const char *label);
+bool session_wait_tab(Session *session, const char *label, size_t *x, size_t *y);
 bool keyboard_schedule_option(Session *session, char option, const char *status);
 bool drag_title_to_label(Session *session, const char *title, const char *label,
                          bool motion, bool expect_drag);
