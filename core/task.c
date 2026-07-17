@@ -81,10 +81,14 @@ bool task_list_import_full(TaskList *list, uint64_t id, const char *text,
         return false;
     }
     /*
-     * Acquire fallible, task-owned data before growing or publishing the new
-     * element. If allocation or reserve fails, length, ordering, next_id, and
-     * revision all remain exactly as the caller supplied them.
+     * Import input may alias an existing task. Stage text and acquire owned
+     * description storage before reserve(), which may relocate the vector. This
+     * also keeps allocation failure atomic: no list metadata changes until all
+     * fallible preparation has succeeded.
      */
+    const size_t text_length = strlen(text);
+    char staged_text[LOWTASK_TEXT_MAX + 1U];
+    memcpy(staged_text, text, text_length + 1U);
     char *owned_description = copy_description(description);
     if (description != NULL && description[0] != '\0' && owned_description == NULL) {
         return false;
@@ -96,8 +100,7 @@ bool task_list_import_full(TaskList *list, uint64_t id, const char *text,
     Task *task = &list->items[list->length++];
     *task = (Task){.id = id, .description = owned_description,
                    .priority = priority, .completed = completed};
-    const size_t length = strlen(text);
-    memcpy(task->text, text, length + 1U);
+    memcpy(task->text, staged_text, text_length + 1U);
     if (id >= list->next_id) {
         list->next_id = id + 1U;
     }

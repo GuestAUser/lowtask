@@ -114,6 +114,35 @@ static void test_validation(void) {
     task_list_free(&list);
 }
 
+static void test_import_from_aliased_task_storage(void) {
+    TaskList list;
+    task_list_init(&list);
+
+    size_t index = 0U;
+    do {
+        char text[32];
+        char description[32];
+        const int text_length = snprintf(text, sizeof(text), "source %zu", index);
+        const int description_length = snprintf(description, sizeof(description), "details %zu", index);
+        assert(text_length > 0 && (size_t)text_length < sizeof(text));
+        assert(description_length > 0 && (size_t)description_length < sizeof(description));
+        assert(task_list_add_configured(&list, text, description, TASK_PRIORITY_NORMAL,
+                                        NULL, false, NULL));
+        ++index;
+    } while (list.length < list.capacity);
+    assert(list.length == list.capacity);
+
+    const char *aliased_text = list.items[0].text;
+    const char *aliased_description = list.items[0].description;
+    const uint64_t imported_id = list.next_id;
+    assert(task_list_import_full(&list, imported_id, aliased_text, aliased_description,
+                                 TASK_PRIORITY_HIGH, false));
+    assert(strcmp(list.items[list.length - 1U].text, "source 0") == 0);
+    assert(strcmp(list.items[list.length - 1U].description, "details 0") == 0);
+
+    task_list_free(&list);
+}
+
 static void test_due_date_validation(void) {
     assert(task_due_date_is_valid("2026-07-11"));
     assert(task_due_date_is_valid("2024-02-29"));
@@ -238,6 +267,7 @@ int main(void) {
     test_revision_increments_on_successful_mutations();
     test_task_lifecycle();
     test_validation();
+    test_import_from_aliased_task_storage();
     test_due_date_validation();
     test_strict_gregorian_date_baseline();
     test_date_add_days();
