@@ -117,7 +117,11 @@ static void restore_terminal(void) {
     }
     static const char leave[] =
         "\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0m\x1b[?25h\x1b[?7h\x1b[?1049l";
-    /* Restore input modes first; visual cleanup is bounded best effort on a slow output fd. */
+    /*
+     * Restore input processing before attempting visual cleanup. Output may be
+     * slow or broken, so escape cleanup is bounded best effort; canonical input
+     * and signal behavior must not depend on those bytes being accepted.
+     */
     (void)tcsetattr(restore_state.input_fd, TCSAFLUSH, &restore_state.original);
     (void)write_all(restore_state.output_fd, leave, sizeof(leave) - 1U);
     (void)fcntl(restore_state.output_fd, F_SETFL, restore_state.output_flags);
@@ -148,6 +152,12 @@ bool terminal_open(Terminal *terminal, int input_fd, int output_fd) {
     if (tcgetattr(input_fd, &terminal->original) != 0) {
         return false;
     }
+    /*
+     * Initialization is staged so every failure after raw mode is enabled can
+     * restore the original terminal before returning. Once nonblocking output
+     * is installed, terminal_close and atexit share the same idempotent restore
+     * state, preventing duplicate teardown or a terminal left in raw mode.
+     */
     struct termios raw = terminal->original;
     raw.c_iflag &= (tcflag_t)~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= (tcflag_t)~OPOST;
@@ -197,7 +207,11 @@ void terminal_close(Terminal *terminal) {
 }
 
 static void signal_handler(int signal_number) {
-    /* Handlers only set sig_atomic_t flags; cleanup and resizing remain in the main loop. */
+    /*
+     * Signal handlers only publish sig_atomic_t flags. Terminal restoration,
+     * allocation, rendering, and resize queries stay in the main loop because
+     * none of those operations is async-signal-safe.
+     */
     if (signal_number == SIGWINCH) {
         resize_requested = 1;
     } else {

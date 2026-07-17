@@ -49,6 +49,10 @@ bool session_read(Session *session, bool *closed) {
     }
 }
 
+static bool screen_parser_idle(const Screen *screen) {
+    return screen->parser_state == 0U && screen->utf8_needed == 0U;
+}
+
 bool session_wait(Session *session, const char *needle, int64_t timeout_ms) {
     const int64_t start = monotonic_milliseconds();
     if (start < 0) return false;
@@ -58,6 +62,7 @@ bool session_wait(Session *session, const char *needle, int64_t timeout_ms) {
         if (pty_test_interrupted() || !session_read(session, &closed) ||
             !child_poll_status(&session->child)) return false;
         if (screen_contains(&session->screen, needle)) {
+            /* A text match is not a frame boundary; drain its output burst before acting on it. */
             const int64_t matched_at = monotonic_milliseconds();
             return matched_at >= 0 && session_settle(session, deadline - matched_at);
         }
@@ -81,13 +86,12 @@ bool session_settle(Session *session, int64_t timeout_ms) {
         if (closed || session->child.reaped) return true;
         const int64_t now = monotonic_milliseconds();
         if (now < 0) return false;
-        if (now >= deadline) return session->screen.parser_state == 0U &&
-                                    session->screen.utf8_needed == 0U;
+        if (now >= deadline) return screen_parser_idle(&session->screen);
         struct pollfd input = {.fd = session->master, .events = POLLIN};
         const int remaining = (int)(deadline - now);
         const int ready = poll(&input, 1U, remaining > QUIET_MS ? QUIET_MS : remaining);
-        if (ready == 0 && session->screen.parser_state == 0U &&
-            session->screen.utf8_needed == 0U) return true;
+        /* Silence inside a partial CSI or UTF-8 sequence is not a stable screen. */
+        if (ready == 0 && screen_parser_idle(&session->screen)) return true;
         if (ready < 0 && errno != EINTR) return false;
     }
 }

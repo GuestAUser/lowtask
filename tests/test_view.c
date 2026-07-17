@@ -1,5 +1,3 @@
-/* noqa: SIZE_OK -- This integration test binary intentionally covers the complete TUI view. */
-
 #include "core/state.h"
 #include "core/task.h"
 #include "tui/color.h"

@@ -7,6 +7,7 @@ bool screen_resize(Screen *screen, size_t columns, size_t rows) {
     if (columns == 0U || rows == 0U || columns > MAX_SCREEN_CELLS / rows) return false;
     ScreenCell *cells = calloc(columns * rows, sizeof(*cells));
     if (cells == NULL) return false;
+    /* A resize invalidates cells, not an escape or UTF-8 sequence split across reads. */
     free(screen->cells);
     screen->cells = cells;
     screen->columns = columns;

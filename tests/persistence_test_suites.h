@@ -13,6 +13,5 @@ void test_saved_state_is_private_regular_file(const char *path);
 void test_complete_save_preflight(const char *path);
 void test_exclusive_lock(const char *path);
 void test_lock_rejects_symlink(const char *path);
-void test_default_path(void);
 
 #endif

@@ -19,10 +19,13 @@ values belong in the centralized TUI implementation and its regression tests.
   and keeping direct data flow over wrappers, frameworks, or generic layers.
 - Add an abstraction only when current code has a repeated boundary that the
   abstraction makes easier to verify. Do not build extension points in advance.
-- Keep each C source or header at no more than 250 pure lines of code, excluding
-  blank and comment-only lines. A rare indivisible exception requires
-  `SIZE_OK: <nonempty rationale>` inside a comment within the first five physical
-  lines so the reason remains visible and mechanically enforceable.
+- Split files around cohesive responsibilities and clear ownership, not a line
+  quota. A file should be only as large as its responsibility requires; extract
+  code when the new boundary makes behavior easier to understand, test, or
+  change independently.
+- Treat file growth as a review prompt rather than an automatic defect. Avoid
+  tiny forwarding modules and abstractions whose only purpose is satisfying a
+  metric.
 - Keep ownership visible: core state, input decoding, terminal integration,
   rendering, and runtime orchestration have distinct responsibilities.
 - Choose the smallest complete fix at the root of a problem. Avoid a local

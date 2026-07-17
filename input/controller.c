@@ -50,12 +50,17 @@ void controller_handle_action(AppState *state, AppAction action) {
         return;
     }
     if (state->mode == APP_MODE_HELP) {
-        if (action.type == APP_ACTION_CLOSE_HELP) controller_help_close(state);
-        else controller_set_status(state, "close help first");
+        if (action.type == APP_ACTION_CLOSE_HELP) {
+            controller_help_close(state);
+        } else {
+            controller_set_status(state, "close help first");
+        }
         return;
     }
     if (state->mode == APP_MODE_PRIORITY_PICKER || state->mode == APP_MODE_SCHEDULE_PICKER) {
-        if (action.type == APP_ACTION_APPLY_OPTION) controller_modal_apply_option(state, action.option);
+        if (action.type == APP_ACTION_APPLY_OPTION) {
+            controller_modal_apply_option(state, action.option);
+        }
         return;
     }
     if (state->mode != APP_MODE_NORMAL) return;
@@ -113,8 +118,11 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
         return;
     }
     if (state->drag_active) {
-        if (event.mouse_action == INPUT_MOUSE_MOTION) controller_drag_track(state, action, event);
-        else if (event.mouse_action == INPUT_MOUSE_PRESS) controller_set_status(state, "finish or cancel drag");
+        if (event.mouse_action == INPUT_MOUSE_MOTION) {
+            controller_drag_track(state, action, event);
+        } else if (event.mouse_action == INPUT_MOUSE_PRESS) {
+            controller_set_status(state, "finish or cancel drag");
+        }
         return;
     }
     if (state->drag_candidate) {
@@ -150,7 +158,7 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
         state->hovered_action = action;
         return;
     }
-    if (event.mouse_action == INPUT_MOUSE_PRESS && event.mouse_button == INPUT_MOUSE_BUTTON_LEFT) {
+    if (event.mouse_action == INPUT_MOUSE_PRESS) {
         const bool allowed_overlay_action =
             (help_mode && action.type == APP_ACTION_CLOSE_HELP) ||
             (picker_mode && action.type == APP_ACTION_APPLY_OPTION);
@@ -167,7 +175,7 @@ void controller_handle_mouse_action(AppState *state, AppAction action, InputEven
         state->pressed_action = action;
         return;
     }
-    if (event.mouse_action == INPUT_MOUSE_RELEASE && event.mouse_button == INPUT_MOUSE_BUTTON_LEFT) {
+    if (event.mouse_action == INPUT_MOUSE_RELEASE) {
         const bool activate = controller_action_equal(state->pressed_action, action);
         state->pressed_action = (AppAction){0};
         state->hovered_action = action;

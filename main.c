@@ -97,9 +97,14 @@ int main(void) {
 
     exit_code = app_runtime_run(&state, &terminal, &renderer);
 
+    /*
+     * Shutdown preserves terminal usability before persistence: finish the
+     * delayed delete while state is live, release rendering, restore the tty,
+     * then block handled signals around the final durable save. State, tasks,
+     * and the process lock remain owned until saving has completed.
+     */
     app_state_finish_pending_delete(&state);
     renderer_free(&renderer);
-    /* Restore terminal usability before a final save can block or fail on filesystem I/O. */
     terminal_close(&terminal);
     bool save_error_reported = false;
     if (state.dirty) {
@@ -112,14 +117,15 @@ int main(void) {
         (void)sigaddset(&blocked_signals, SIGTERM);
         (void)sigaddset(&blocked_signals, SIGHUP);
         (void)sigaddset(&blocked_signals, SIGQUIT);
-        /* Keep termination signal delivery out of the final save's durability sequence. */
         const bool signals_blocked = sigprocmask(SIG_BLOCK, &blocked_signals, &previous_signals) == 0;
         if (!save_if_needed(&state, state_path, &save_blocked)) {
             (void)fprintf(stderr, "lowtask: %s\n", state.status);
             save_error_reported = true;
             exit_code = 1;
         }
-        if (signals_blocked) (void)sigprocmask(SIG_SETMASK, &previous_signals, NULL);
+        if (signals_blocked) {
+            (void)sigprocmask(SIG_SETMASK, &previous_signals, NULL);
+        }
     }
     app_state_dispose(&state);
     task_list_free(&tasks);

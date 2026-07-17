@@ -73,6 +73,11 @@ static bool split_task(char *line, unsigned int version, uint64_t *id, TaskPrior
     char *due_date_text = has_due_date ? fields[4] : NULL;
     char *hex = fields[has_due_date ? 5U : 4U];
     uint64_t priority_value = 0U;
+    /*
+     * Compatibility is grammar-specific, not merely field-count-specific.
+     * Versions 1 and 2 predate Urgent priority, so accepting value 4 in those
+     * records would reinterpret data that older writers could never produce.
+     */
     const uint64_t maximum_priority = version >= 3U ? TASK_PRIORITY_URGENT : TASK_PRIORITY_HIGH;
     if (!parse_u64(priority_text, &priority_value) || priority_value > maximum_priority ||
         !task_priority_is_valid((TaskPriority)priority_value) ||
@@ -138,6 +143,11 @@ bool persistence_format_load(FILE *file, TaskList *loaded, char *error, size_t e
              strncmp(line, "NEXT\t", 5U) == 0 && parse_u64(line + 5U, &next_id);
         if (!ok && error != NULL && error[0] == '\0') set_error(error, error_size, "invalid next id");
     }
+    /*
+     * Import records in file order so TaskList's strictly increasing-ID rule
+     * also validates on-disk ordering. next_id is committed only after every
+     * record and the stream itself have passed validation.
+     */
     size_t line_number = 2U;
     while (ok && fgets(line, (int)sizeof(line), file) != NULL) {
         ++line_number;
@@ -189,7 +199,9 @@ static bool write_hex(FILE *file, const char *text) {
 }
 
 bool persistence_format_write(FILE *file, const TaskList *list) {
-    if (fprintf(file, "LOWTASK\t4\nNEXT\t%" PRIu64 "\n", list->next_id) < 0) return false;
+    if (fprintf(file, "LOWTASK\t4\nNEXT\t%" PRIu64 "\n", list->next_id) < 0) {
+        return false;
+    }
     for (size_t index = 0U; index < list->length; ++index) {
         const Task *task = &list->items[index];
         const char *due_date = task->due_date[0] == '\0' ? "-" : task->due_date;
@@ -197,11 +209,19 @@ bool persistence_format_write(FILE *file, const TaskList *list) {
                     task->completed ? 1 : 0, due_date) < 0) {
             return false;
         }
-        if (!write_hex(file, task->text) || fputc('\t', file) == EOF) return false;
+        if (!write_hex(file, task->text) || fputc('\t', file) == EOF) {
+            return false;
+        }
         if (task->description == NULL) {
-            if (fputc('-', file) == EOF) return false;
-        } else if (!write_hex(file, task->description)) return false;
-        if (fputc('\n', file) == EOF) return false;
+            if (fputc('-', file) == EOF) {
+                return false;
+            }
+        } else if (!write_hex(file, task->description)) {
+            return false;
+        }
+        if (fputc('\n', file) == EOF) {
+            return false;
+        }
     }
     return true;
 }

@@ -25,6 +25,11 @@ untrusted at their boundaries. Preserve private file modes, locking, atomic save
 terminal restoration, and the rule that only the renderer emits escape syntax.
 Comments should explain a non-obvious invariant, safety reason, ownership boundary,
 or measured tradeoff, not narrate adjacent code or leave vague TODOs.
+Organize files by cohesive responsibility rather than a numeric size target. Do
+not split code into pass-through modules solely to make individual files shorter.
+Use blank lines to separate validation, preparation, mutation, and commit phases.
+Prefer braced blocks where nested branches or multi-step failure handling would
+otherwise hide control flow; compact guard clauses may remain compact.
 
 Do not add a new semantic color, glyph, dimension, timing, or interaction rule in
 one component. Keep exact visual values in the centralized TUI implementation and
@@ -38,17 +43,13 @@ Build and run the regression suite with:
 ```sh
 make clean && make CC=gcc all test
 make clean && make CC=clang all test
-make check-source-size
 ./tests/test_install.sh
 ```
 
 CI builds, tests, and verifies installation on Linux with GCC and Clang and on
 the `macos-15` runner with Apple Clang. `make test` builds the portable C timeout
 supervisor; `./tests/test_install.sh` also verifies its status and process-group
-cleanup contracts. `make check-source-size` runs the checker regressions and
-then enforces the 250-pure-LOC limit across the tree; any `SIZE_OK` exception
-needs a nonempty rationale in a comment within the first five physical lines.
-Before submitting changes to parsing, persistence, terminal
+cleanup contracts. Before submitting changes to parsing, persistence, terminal
 handling, input, or other memory-sensitive code, also run:
 
 ```sh

@@ -33,6 +33,7 @@ bool session_wait_tab(Session *session, const char *label, size_t *x, size_t *y)
     for (;;) {
         if (pty_test_interrupted() || !session_read(session, &closed) ||
             !child_poll_status(&session->child)) return false;
+        /* Status and animation text can repeat a label; only row 1 owns tab hit targets. */
         if (screen_find_ascii_row(&session->screen, 1U, label, x)) {
             *y = 1U;
             return true;

@@ -33,7 +33,9 @@ static void set_error(char *error, size_t size, const char *format, ...) {
 
 static bool fsync_retry(int descriptor) {
     while (fsync(descriptor) != 0) {
-        if (errno != EINTR) return false;
+        if (errno != EINTR) {
+            return false;
+        }
     }
     return true;
 }
@@ -41,8 +43,12 @@ static bool fsync_retry(int descriptor) {
 static bool sync_temporary_file(int descriptor) {
 #ifdef __APPLE__
     while (fcntl(descriptor, F_FULLFSYNC) != 0) {
-        if (errno == EINVAL || errno == ENOTSUP) return fsync_retry(descriptor);
-        if (errno != EINTR) return false;
+        if (errno == EINVAL || errno == ENOTSUP) {
+            return fsync_retry(descriptor);
+        }
+        if (errno != EINTR) {
+            return false;
+        }
     }
     return true;
 #else
@@ -66,6 +72,11 @@ bool persistence_load(const char *path, TaskList *list, char *error, size_t erro
         set_error(error, error_size, "cannot open state: %s", strerror(errno));
         return false;
     }
+    /*
+     * Parse into a fresh owner and transfer it only after parsing and closing
+     * the stream both succeed. Any failure frees the staged list and leaves the
+     * caller's last valid in-memory state untouched.
+     */
     TaskList loaded;
     task_list_init(&loaded);
     bool ok = persistence_format_load(file, &loaded, error, error_size);
@@ -114,15 +125,23 @@ static bool ensure_parent(const char *path, char *error, size_t error_size) {
 }
 
 bool persistence_lock(const char *path, int *lock_fd, char *error, size_t error_size) {
-    if (lock_fd != NULL) *lock_fd = -1;
-    if (path == NULL || lock_fd == NULL || !ensure_parent(path, error, error_size)) return false;
+    if (lock_fd != NULL) {
+        *lock_fd = -1;
+    }
+    if (path == NULL || lock_fd == NULL || !ensure_parent(path, error, error_size)) {
+        return false;
+    }
     char lock_path[PATH_MAX];
     const int written = snprintf(lock_path, sizeof(lock_path), "%s.lock", path);
     if (written < 0 || (size_t)written >= sizeof(lock_path)) {
         set_error(error, error_size, "state lock path is too long");
         return false;
     }
-    /* Refuse symlink and non-regular lock targets so advisory locking stays on our own file. */
+    /*
+     * O_NOFOLLOW and the post-open regular-file check keep advisory locking on
+     * a file owned by this path. A pre-existing symlink or special file must not
+     * redirect the process into locking an attacker-selected object.
+     */
     const int descriptor = open(lock_path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
     if (descriptor < 0) {
         set_error(error, error_size, "cannot open state lock: %s", strerror(errno));
@@ -131,12 +150,12 @@ bool persistence_lock(const char *path, int *lock_fd, char *error, size_t error_
     (void)fchmod(descriptor, 0600);
     struct stat status;
     bool locked = false;
-    if (fstat(descriptor, &status) != 0) {
-        locked = false;
-    } else if (!S_ISREG(status.st_mode)) {
-        errno = EINVAL;
-    } else {
-        locked = flock(descriptor, LOCK_EX | LOCK_NB) == 0;
+    if (fstat(descriptor, &status) == 0) {
+        if (!S_ISREG(status.st_mode)) {
+            errno = EINVAL;
+        } else {
+            locked = flock(descriptor, LOCK_EX | LOCK_NB) == 0;
+        }
     }
     if (!locked) {
         const int saved_errno = errno;
@@ -150,7 +169,9 @@ bool persistence_lock(const char *path, int *lock_fd, char *error, size_t error_
 }
 
 void persistence_unlock(int lock_fd) {
-    if (lock_fd < 0) return;
+    if (lock_fd < 0) {
+        return;
+    }
     (void)flock(lock_fd, LOCK_UN);
     (void)close(lock_fd);
 }
@@ -159,7 +180,9 @@ static bool sync_parent_directory(const char *path) {
     const int entry_errno = errno;
     char parent[PATH_MAX];
     const size_t length = strlen(path);
-    if (length == 0U || length >= sizeof(parent)) return false;
+    if (length == 0U || length >= sizeof(parent)) {
+        return false;
+    }
     memcpy(parent, path, length + 1U);
     char *slash = strrchr(parent, '/');
     if (slash == NULL) {
@@ -170,7 +193,9 @@ static bool sync_parent_directory(const char *path) {
         *slash = '\0';
     }
     const int descriptor = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (descriptor < 0) return false;
+    if (descriptor < 0) {
+        return false;
+    }
     const bool ok = fsync_retry(descriptor);
     const int saved_errno = errno;
     (void)close(descriptor);
@@ -211,6 +236,12 @@ bool persistence_save(const char *path, const TaskList *list, char *error, size_
         set_error(error, error_size, "state path is too long");
         return false;
     }
+    /*
+     * The ordering below is the durability contract: write, flush, and sync a
+     * private temporary file before closing and renaming it, then sync the
+     * containing directory. Pre-rename failures preserve the old file; the
+     * final directory sync makes the replacement entry durable.
+     */
     int descriptor = mkstemp(temporary);
     if (descriptor < 0) {
         set_error(error, error_size, "cannot create temporary state: %s", strerror(errno));

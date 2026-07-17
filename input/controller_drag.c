@@ -12,6 +12,10 @@ void controller_drag_clear(AppState *state, bool preserve_source) {
         controller_clear_pointer(state);
         return;
     }
+    /*
+     * The move effect outlives the gesture and still renders the captured task.
+     * Keep its stable ID, title, source tab, and lift timing until the effect ends.
+     */
     state->drag_candidate = false;
     state->drag_active = false;
     state->drag_source_action = (AppAction){0};
@@ -38,7 +42,11 @@ static const char *tab_drop_status(AppTab tab) {
 }
 
 static void apply_drag_drop(AppState *state, AppTab target) {
-    /* Rows can move during a drag, so only the ID captured at press remains task identity. */
+    /*
+     * A drop can reorder or filter the projection, invalidating every cached
+     * row ordinal. Mutate through the captured stable ID, rebuild once, then
+     * reselect by that ID before publishing feedback.
+     */
     const uint64_t task_id = state->drag_task_id;
     Task *task = task_list_get(state->tasks, task_id);
     if (task == NULL) {
@@ -90,7 +98,6 @@ static void apply_drag_drop(AppState *state, AppTab target) {
             mutated = true;
         }
     }
-    /* Rebuild after all mutations, then reselect by ID before publishing move feedback. */
     const AppTab previous = state->tab;
     state->tab = target;
     controller_drag_clear(state, true);

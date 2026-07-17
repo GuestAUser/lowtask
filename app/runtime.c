@@ -1,5 +1,4 @@
 #include "app/runtime.h"
-#include "app/runtime_input.h"
 
 #include "input/controller.h"
 #include "input/input.h"
@@ -14,6 +13,7 @@
 #include <unistd.h>
 
 #define FRAME_SECONDS (1.0 / 60.0)
+#define INPUT_FLUSH_SECONDS 0.025
 
 typedef struct {
     AppState *state;
@@ -25,6 +25,37 @@ typedef struct {
     double input_flush_deadline;
     bool reduced_motion;
 } AppRuntime;
+
+static bool runtime_input_pending(const InputDecoder *decoder) {
+    return decoder->length > 0U || decoder->discarding_control_sequence;
+}
+
+/*
+ * Escape-prefixed input is ambiguous until another byte arrives. This short
+ * completion window preserves split control sequences without letting a lone
+ * Escape key wait indefinitely.
+ */
+static double runtime_input_deadline(const InputDecoder *decoder, double now) {
+    return runtime_input_pending(decoder) ? now + INPUT_FLUSH_SECONDS : 0.0;
+}
+
+static int milliseconds_until(double deadline, double now, int maximum) {
+    const double remaining = deadline - now;
+    if (remaining <= 0.0) return 0;
+    const int milliseconds = (int)(remaining * 1000.0 + 0.999);
+    return milliseconds > maximum ? maximum : milliseconds;
+}
+
+static int runtime_poll_timeout(const InputDecoder *decoder, double input_deadline,
+                                bool needs_frame, bool animating, double next_frame, double now) {
+    if (runtime_input_pending(decoder)) {
+        return milliseconds_until(input_deadline, now, 25);
+    }
+    if (!needs_frame && !animating) {
+        return 250;
+    }
+    return milliseconds_until(next_frame, now, 17);
+}
 
 static TuiMode view_mode(AppMode mode) {
     if (mode == APP_MODE_ADD) return TUI_MODE_ADD;
@@ -174,7 +205,11 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             retarget_scroll(&runtime, visible_rows(&runtime));
             needs_frame = true;
         }
-        /* Monotonic elapsed time skips missed intermediate frames instead of accumulating lag. */
+        /*
+         * Animation advances from monotonic elapsed time, not frame count. If
+         * rendering stalls, the next frame moves directly to the correct point
+         * in the timeline instead of replaying missed frames and compounding lag.
+         */
         if ((needs_frame || is_animating(&runtime)) && now >= next_frame) {
             const bool draining_output = renderer_has_pending_output(renderer);
             float delta = (float)(now - previous);
@@ -193,7 +228,11 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             needs_frame = draining_output || renderer_has_pending_output(renderer);
         }
 
-        /* The renderer retains partial frames; POLLOUT merely re-arms its bounded drain path. */
+        /*
+         * The renderer retains ownership of a partially written frame. POLLOUT
+         * only re-arms that bounded drain path; the runtime must not compose a
+         * replacement frame until the queued diff has reached the terminal.
+         */
         struct pollfd descriptors[2] = {
             {.fd = terminal->input_fd, .events = POLLIN},
             {.fd = terminal->output_fd,
@@ -232,7 +271,8 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             if (count > 0) {
                 event_count = input_decoder_feed(&runtime.decoder, bytes, (size_t)count,
                                                   events, sizeof(events) / sizeof(events[0]));
-                runtime.input_flush_deadline = runtime_input_deadline(&runtime.decoder, terminal_monotonic_seconds());
+                runtime.input_flush_deadline = runtime_input_deadline(
+                    &runtime.decoder, terminal_monotonic_seconds());
             } else if (count == 0) {
                 break;
             } else if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -246,7 +286,8 @@ int app_runtime_run(AppState *state, Terminal *terminal, Renderer *renderer) {
             terminal_monotonic_seconds() >= runtime.input_flush_deadline) {
             event_count = input_decoder_flush(&runtime.decoder, events,
                                                sizeof(events) / sizeof(events[0]));
-            runtime.input_flush_deadline = runtime_input_deadline(&runtime.decoder, terminal_monotonic_seconds());
+            runtime.input_flush_deadline = runtime_input_deadline(
+                &runtime.decoder, terminal_monotonic_seconds());
         }
         const AppEffect effect_before_events = state->effect;
         for (size_t index = 0U; index < event_count; ++index) {

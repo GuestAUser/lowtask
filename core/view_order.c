@@ -74,7 +74,11 @@ size_t app_state_visible_count(const AppState *state) {
 size_t app_state_visible_task_index(const AppState *state, size_t visible_index) {
     if (!app_state_is_initialized(state) || visible_index >= state->entry_count) return SIZE_MAX;
     const AppDisplayEntry *entry = &state->entries[visible_index];
-    /* Raw index is a cache only; stable ID validates it before lookup recovers from staleness. */
+    /*
+     * raw_index is only a fast cache. Validate it against the stable task ID
+     * before use; if a mutation shifted storage, recover by identity rather
+     * than allowing a stale projection entry to resolve to another task.
+     */
     if (entry->raw_index < state->tasks->length &&
         state->tasks->items[entry->raw_index].id == entry->task_id) {
         return entry->raw_index;
@@ -149,7 +153,11 @@ bool app_state_refresh(AppState *state) {
         (state->tasks->length > 0U && state->tasks->items == NULL)) {
         return false;
     }
-    /* Preserve selection by identity across projection rebuilds; ordinal is only a fallback. */
+    /*
+     * Rebuilds can reorder, filter, or regroup every visible row. Preserve
+     * selection by stable task ID when possible and use the old ordinal only as
+     * a bounded fallback when that task no longer belongs to the projection.
+     */
     const size_t previous_ordinal = state->selected;
     const uint64_t previous_id = state->selected_task_id;
     if (!app_state_reserve(state, state->tasks->length)) return false;

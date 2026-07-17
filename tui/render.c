@@ -1,5 +1,6 @@
-#include "tui/text_cells.h"
+#include "tui/render.h"
 
+#include "core/text.h"
 #include "tui/color.h"
 
 #include <errno.h>
@@ -15,6 +16,69 @@ static bool cell_count(size_t width, size_t height, size_t *count) {
     }
     *count = width * height;
     return *count <= SIZE_MAX / sizeof(RendererCell);
+}
+
+unsigned renderer_codepoint_width(uint32_t codepoint) {
+    return text_codepoint_width(codepoint);
+}
+
+/*
+ * A lead cell owns the complete UTF-8 cluster that the terminal will render.
+ * Combining marks append to that owner without consuming geometry, while a
+ * wide glyph reserves its second column with a width-zero continuation cell.
+ * Keeping both rules in the cell buffer prevents diff output from splitting a
+ * cluster or later drawing into half of a wide character.
+ */
+void renderer_put_utf8(Renderer *renderer, size_t x, size_t y, const char *text,
+                       size_t max_cells, RendererStyle style) {
+    if (renderer == NULL || text == NULL || y >= renderer->height || x >= renderer->width) {
+        return;
+    }
+
+    size_t used = 0U;
+    RendererCell *cluster = NULL;
+    const unsigned char *cursor = (const unsigned char *)text;
+    while (*cursor != '\0') {
+        uint32_t codepoint = 0U;
+        size_t byte_count = 1U;
+        (void)text_decode_utf8(cursor, &codepoint, &byte_count);
+        const unsigned width = renderer_codepoint_width(codepoint);
+
+        if (width == 0U) {
+            if (cluster != NULL && cluster->glyph_length + byte_count < sizeof(cluster->glyph)) {
+                memcpy(cluster->glyph + cluster->glyph_length, cursor, byte_count);
+                cluster->glyph_length = (uint8_t)(cluster->glyph_length + byte_count);
+                cluster->glyph[cluster->glyph_length] = '\0';
+            }
+            cursor += byte_count;
+            continue;
+        }
+
+        if (used + width > max_cells || x + used + width > renderer->width) {
+            break;
+        }
+
+        RendererCell *cell = &renderer->back[y * renderer->width + x + used];
+        *cell = (RendererCell){
+            .foreground = style.foreground, .background = style.background,
+            .glyph_length = (uint8_t)byte_count, .width = (uint8_t)width,
+            .attributes = style.attributes,
+        };
+        memcpy(cell->glyph, cursor, byte_count);
+        cell->glyph[byte_count] = '\0';
+        cluster = cell;
+
+        if (width == 2U) {
+            RendererCell *continuation = cell + 1;
+            *continuation = (RendererCell){
+                .foreground = style.foreground, .background = style.background,
+                .glyph_length = 0U, .width = 0U, .attributes = style.attributes,
+            };
+        }
+
+        used += width;
+        cursor += byte_count;
+    }
 }
 
 bool renderer_resize(Renderer *renderer, size_t width, size_t height) {
@@ -125,9 +189,18 @@ static bool append_style(Renderer *renderer, size_t *length, const RendererCell 
     if (background < 0 || !append_bytes(renderer, length, escape, (size_t)background)) {
         return false;
     }
-    if ((cell->attributes & RENDER_ATTR_BOLD) != 0U && !append_bytes(renderer, length, "\x1b[1m", 4U)) return false;
-    if ((cell->attributes & RENDER_ATTR_DIM) != 0U && !append_bytes(renderer, length, "\x1b[2m", 4U)) return false;
-    if ((cell->attributes & RENDER_ATTR_STRIKE) != 0U && !append_bytes(renderer, length, "\x1b[9m", 4U)) return false;
+    if ((cell->attributes & RENDER_ATTR_BOLD) != 0U &&
+        !append_bytes(renderer, length, "\x1b[1m", 4U)) {
+        return false;
+    }
+    if ((cell->attributes & RENDER_ATTR_DIM) != 0U &&
+        !append_bytes(renderer, length, "\x1b[2m", 4U)) {
+        return false;
+    }
+    if ((cell->attributes & RENDER_ATTR_STRIKE) != 0U &&
+        !append_bytes(renderer, length, "\x1b[9m", 4U)) {
+        return false;
+    }
     return true;
 }
 
@@ -155,8 +228,12 @@ static int drain_pending_output(Renderer *renderer, int descriptor) {
             renderer->pending_offset += (size_t)written;
             continue;
         }
-        if (written < 0 && errno == EINTR) continue;
-        if (written < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 0;
+        if (written < 0 && errno == EINTR) {
+            continue;
+        }
+        if (written < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            return 0;
+        }
         return -1;
     }
     renderer->pending_offset = 0U;
@@ -170,10 +247,18 @@ ssize_t renderer_present(Renderer *renderer, int descriptor) {
         return -1;
     }
     const size_t count = renderer->width * renderer->height;
+    /*
+     * `front` means fully delivered to the terminal, not merely queued. A
+     * partial nonblocking write leaves it unchanged and retains the matching
+     * `back` frame until that diff drains; advancing early would let the next
+     * diff omit cells the terminal never received.
+     */
     if (renderer_has_pending_output(renderer)) {
         const size_t queued_length = renderer->pending_length;
         const int drained = drain_pending_output(renderer, descriptor);
-        if (drained <= 0) return drained;
+        if (drained <= 0) {
+            return drained;
+        }
         memcpy(renderer->front, renderer->back, count * sizeof(*renderer->front));
         renderer->front_valid = true;
         return queued_length <= (size_t)SSIZE_MAX ? (ssize_t)queued_length : -1;
@@ -214,8 +299,9 @@ ssize_t renderer_present(Renderer *renderer, int descriptor) {
     renderer->pending_offset = 0U;
     renderer->pending_length = output_length;
     const int drained = drain_pending_output(renderer, descriptor);
-    if (drained <= 0) return drained;
-    /* Front advances only after the entire diff is committed to the output descriptor. */
+    if (drained <= 0) {
+        return drained;
+    }
     memcpy(renderer->front, renderer->back, count * sizeof(*renderer->front));
     renderer->front_valid = true;
     return output_length <= (size_t)SSIZE_MAX ? (ssize_t)output_length : -1;

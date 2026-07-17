@@ -1,8 +1,18 @@
 #include "core/task.h"
 
+#include "core/text.h"
+
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
+bool task_text_is_valid(const char *text) {
+    return text_utf8_is_valid(text, LOWTASK_TEXT_MAX, false);
+}
+
+bool task_description_is_valid(const char *description) {
+    return description == NULL || text_utf8_is_valid(description, LOWTASK_DESCRIPTION_MAX, true);
+}
 
 bool task_priority_is_valid(TaskPriority priority) {
     return priority >= TASK_PRIORITY_LOW && priority <= TASK_PRIORITY_URGENT;
@@ -70,8 +80,15 @@ bool task_list_import_full(TaskList *list, uint64_t id, const char *text,
         (list->length > 0U && id <= list->items[list->length - 1U].id)) {
         return false;
     }
+    /*
+     * Acquire fallible, task-owned data before growing or publishing the new
+     * element. If allocation or reserve fails, length, ordering, next_id, and
+     * revision all remain exactly as the caller supplied them.
+     */
     char *owned_description = copy_description(description);
-    if (description != NULL && description[0] != '\0' && owned_description == NULL) return false;
+    if (description != NULL && description[0] != '\0' && owned_description == NULL) {
+        return false;
+    }
     if (!reserve(list, list->length + 1U)) {
         free(owned_description);
         return false;
@@ -106,6 +123,11 @@ bool task_list_add_configured(TaskList *list, const char *text, const char *desc
         return false;
     }
     const size_t text_length = strlen(text);
+    /*
+     * Callers may derive these inputs from an existing task. Stage fixed-size
+     * values before reserve(), because reallocating the vector can invalidate
+     * every pointer into its previous storage.
+     */
     char staged_text[LOWTASK_TEXT_MAX + 1U];
     memcpy(staged_text, text, text_length + 1U);
     char staged_due_date[LOWTASK_DUE_DATE_LENGTH + 1U] = {0};
@@ -113,7 +135,9 @@ bool task_list_add_configured(TaskList *list, const char *text, const char *desc
         memcpy(staged_due_date, due_date, sizeof(staged_due_date));
     }
     char *owned_description = copy_description(description);
-    if (description != NULL && description[0] != '\0' && owned_description == NULL) return false;
+    if (description != NULL && description[0] != '\0' && owned_description == NULL) {
+        return false;
+    }
     if (!reserve(list, list->length + 1U)) {
         free(owned_description);
         return false;
@@ -171,6 +195,11 @@ bool task_list_edit_fields(TaskList *list, uint64_t id, const char *text,
         return false;
     }
     const size_t length = strlen(text);
+    /*
+     * The replacement text may point at task->text itself. Copy it before any
+     * owned field is released or overwritten so an in-place edit cannot read
+     * from storage that the mutation has already changed.
+     */
     char staged_text[LOWTASK_TEXT_MAX + 1U];
     memcpy(staged_text, text, length + 1U);
     const char *normalized = description != NULL && description[0] != '\0' ? description : NULL;
@@ -179,7 +208,9 @@ bool task_list_edit_fields(TaskList *list, uint64_t id, const char *text,
         (normalized != NULL && task->description != NULL &&
          strcmp(normalized, task->description) == 0);
     char *owned_description = description_unchanged ? task->description : copy_description(normalized);
-    if (normalized != NULL && owned_description == NULL) return false;
+    if (normalized != NULL && owned_description == NULL) {
+        return false;
+    }
     memcpy(task->text, staged_text, length + 1U);
     if (!description_unchanged) {
         free(task->description);
@@ -201,6 +232,11 @@ bool task_list_delete(TaskList *list, uint64_t id) {
                 (list->length - index - 1U) * sizeof(*list->items));
     }
     --list->length;
+    /*
+     * memmove leaves the final physical slot holding a duplicate of the last
+     * live element. Clear that non-live slot so it cannot retain a second copy
+     * of an owned description pointer or look valid during later diagnostics.
+     */
     if (list->length < list->capacity) list->items[list->length] = (Task){0};
     ++list->revision;
     return true;
