@@ -6,10 +6,15 @@ This document defines the constraints used to implement and review `lowtask`. Th
 product behavior, tests provide executable evidence, and source code owns exact visual values and
 other implementation details.
 
-## Product boundary
+## Product identity and boundary
 
-`lowtask` is a 1:1 product: one local user works with one task list stored in one local database. It
-is a terminal application, not a general productivity platform or hosted service.
+`lowtask` is a 1:1 product in the one-of-one sense: its identity comes from a distinct, integrated
+implementation and an engineering bar enforced by explicit invariants and tests, not from
+user-to-database cardinality. The interface, state model, persistence, terminal runtime, renderer,
+and verification strategy must remain one coherent product rather than a generic engine with a
+replaceable front end.
+
+The operating scope remains local and single-user:
 
 - A change must serve the existing local task workflow.
 - Accounts, synchronization, collaboration, and network access are outside the architecture.
