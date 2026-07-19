@@ -1,186 +1,152 @@
-# lowtask Engineering Philosophy
+# lowtask Engineering Contract
 
 ## Purpose
 
-`lowtask` is a local, single-user task manager for Linux and macOS terminals. It should
-remain understandable as a small C program rather than grow into a general
-productivity platform.
+This document defines the constraints used to implement and review `lowtask`. The README describes
+product behavior, tests provide executable evidence, and source code owns exact visual values and
+other implementation details.
 
-This document guides implementation and review. It records the constraints
-that protect the program's correctness, durability, speed, and terminal
-usability. Product behavior belongs in the README and tests; exact visual
-values belong in the centralized TUI implementation and its regression tests.
+## Product boundary
 
-## Keep it small
+`lowtask` is a 1:1 product: one local user works with one task list stored in one local database. It
+is a terminal application, not a general productivity platform or hosted service.
 
-- A change must serve the existing local task workflow. A plausible future use
-  is not enough reason to add code or policy.
-- Prefer deleting code, using the C standard library and direct POSIX interfaces,
-  and keeping direct data flow over wrappers, frameworks, or generic layers.
-- Add an abstraction only when current code has a repeated boundary that the
-  abstraction makes easier to verify. Do not build extension points in advance.
-- Split files around cohesive responsibilities and clear ownership, not a line
-  quota. A file should be only as large as its responsibility requires; extract
-  code when the new boundary makes behavior easier to understand, test, or
-  change independently.
-- Treat file growth as a review prompt rather than an automatic defect. Avoid
-  tiny forwarding modules and abstractions whose only purpose is satisfying a
-  metric.
-- Keep ownership visible: core state, input decoding, terminal integration,
-  rendering, and runtime orchestration have distinct responsibilities.
-- Choose the smallest complete fix at the root of a problem. Avoid a local
-  workaround that leaves two competing sources of truth.
+- A change must serve the existing local task workflow.
+- Accounts, synchronization, collaboration, and network access are outside the architecture.
+- A possible future use does not justify code, policy, or an extension point today.
+- Product scope may change only for a current, documented need with tests and an explicit design
+  decision.
 
-Features and abstractions that expand scope speculatively should be rejected,
-even when they are individually well implemented.
+This boundary keeps ownership, persistence, and failure recovery local and inspectable.
 
-## Correctness and explicit state
+## Simplicity and ownership
 
-- Represent important state directly. Mode, selection, modal target, drag
-  target, persistence dirtiness, and animation state must not be inferred from
-  incidental rendering or storage order.
-- Stable task IDs are authoritative across filtering, sorting, grouping,
-  resizing, animation, and pointer interaction. A visible row number is only a
-  projection and must never become a durable identity.
-- Validate untrusted text, dates, terminal input, and persisted records at their
-  boundaries. Once accepted, internal data should satisfy explicit invariants.
-- A mutation either reaches one coherent final state or does not occur. Drawing,
-  hit testing, navigation, and effects must consume the same display projection.
-- Tests should lock behavior and invariants rather than private helper shapes or
-  complete screen snapshots.
+- Prefer deletion, the C standard library, direct POSIX interfaces, and visible data flow over
+  wrappers, frameworks, and generic layers.
+- Add an abstraction only when a current repeated boundary becomes easier to verify through it.
+- Split files by cohesive responsibility and ownership, not a numeric line target. Extract a module
+  only when the boundary makes behavior easier to understand, test, or change independently.
+- Avoid tiny forwarding modules and parallel sources of truth.
+- Fix a problem at its shared root instead of adding guards to selected callers.
 
-## Failure and recovery
+Ownership remains explicit:
 
-- Preserve user data before preserving convenience. Unreadable persistence must
-  be reported and left untouched rather than guessed at or overwritten.
-- Dirty saves remain atomic: write a private temporary file, sync it, rename it,
-  and sync the containing directory. Legacy data is rewritten only after a
-  successful user mutation.
-- A second process must not silently race the active writer. Lifetime locking is
-  part of the persistence contract.
-- Terminal output remains nonblocking. Partial writes and temporary backpressure
-  are normal runtime states, not reasons to corrupt a frame or abandon cleanup.
-- Restore terminal modes before visual cleanup and persistence work on every
-  recoverable exit path. Errors should be explicit, bounded, and actionable.
+- `core/`: tasks, text and date rules, projections, and persistence;
+- `input/`: terminal decoding and user-action transitions;
+- `platform/`: terminal resources, capabilities, timing, and signals;
+- `tui/`: layout, drawing, hit testing, color, animation, and rendering;
+- `app/runtime.c`: polling and frame scheduling;
+- `main.c`: resource acquisition, composition, and ordered shutdown.
+
+## State and correctness
+
+- Represent mode, selection, modal targets, drag state, persistence dirtiness, and animation state
+  directly. Do not infer them from rendering or storage order.
+- Stable task IDs are authoritative across filtering, sorting, grouping, resizing, animation, and
+  pointer interaction. Visible row numbers are projections, not identities.
+- Validate task text, dates, terminal input, environment values, and persisted records at their
+  boundaries. Accepted internal state must satisfy explicit invariants.
+- A mutation either reaches one coherent final state or does not occur. Allocation failure must not
+  leave partially published state.
+- Drawing, hit testing, navigation, and effects must consume the same display projection.
+- Tests should lock observable behavior and invariants, not private helper shapes or complete screen
+  snapshots.
+
+## Persistence and recovery
+
+- Preserve user data before convenience. Unreadable persistence is reported and left untouched.
+- A dirty save writes a private temporary file, syncs it, atomically renames it, and syncs the
+  containing directory.
+- Legacy data is rewritten only after a successful user mutation.
+- A lifetime advisory lock prevents concurrent writers from silently overwriting each other.
+- Terminal output remains nonblocking. Partial writes and backpressure are ordinary runtime states.
+- Restore terminal modes before visual cleanup and persistence work on every recoverable exit path.
+- Errors must be bounded, explicit, and actionable.
 
 ## Security boundaries
 
-- Task text, database bytes, environment values, dates, keyboard sequences, and
-  mouse reports are untrusted input. Parse them with bounds and reject malformed
-  records or impossible state transitions.
-- Persistence files and temporary files remain private to the user. Do not
-  weaken file modes, locking, or atomic replacement for convenience.
-- Terminal escape output comes only from the renderer; user text must never
-  become control syntax. Keep byte, code-point, and terminal-cell boundaries
-  distinct.
-- New dependencies, subprocesses, network access, or writable automation
-  permissions require a concrete need and a review of the new trust boundary.
-- Vulnerability details follow the security policy and are reported privately.
+- Task text, database bytes, environment values, dates, keyboard sequences, and mouse reports are
+  untrusted input. Parse with explicit bounds and reject malformed records or impossible state.
+- Persistence and temporary files remain private to the user. Do not weaken modes, locking, or
+  atomic replacement.
+- Only the renderer emits terminal control syntax. User text must remain data.
+- Keep byte, Unicode code-point, and terminal-cell boundaries distinct.
+- A new dependency, subprocess, network path, or writable automation permission requires a current
+  need and review of the new trust boundary.
+- Vulnerability details follow `SECURITY.md` and remain private until coordinated disclosure.
 
-## Performance by measurement
+## Performance
 
-- Optimize demonstrated costs, not imagined ones. Record the workload, build,
-  machine context, and before/after measurements for a performance claim.
-- Preserve the allocation-free render hot path and cached display projections
-  unless evidence shows a safer design is necessary.
-- Keep idle work at zero: no terminal writes without a changed frame and no
-  polling loop while no animation or output is pending.
-- Benchmarks measure CPU frame construction and diff formatting, not terminal
-  transport or perceived latency. Describe results only within that boundary.
-- Complexity added for speed must remain testable and earn its maintenance cost.
+- Optimize demonstrated costs. Record the workload, build, machine context, and before/after
+  measurements for a performance claim.
+- Preserve cached display projections and the allocation-free render hot path unless evidence
+  supports a safer replacement.
+- Idle work stays at zero: no terminal output without a changed frame and no busy polling when no
+  animation or output is pending.
+- Repository benchmarks measure CPU frame construction and diff formatting, not terminal transport
+  or perceived latency. Report results within that boundary.
+- Complexity added for speed must be testable and justify its maintenance cost.
 
 ## Portability and dependencies
 
-- The implementation targets C17 plus the documented POSIX terminal interfaces
-  on Linux and macOS. It must build cleanly under the repository's strict GCC
-  and Clang settings.
-- Distribution uses each platform's native binary tooling: `objcopy` embeds the
-  SVG in Linux ELF binaries, while `ld -sectcreate` embeds it in macOS Mach-O
-  binaries. Freedesktop launcher assets remain Linux-only.
-- Test deadlines are enforced by the repository's C supervisor, not a
-  platform-specific timeout utility. It owns an isolated process group, uses a
-  monotonic clock, forwards caller termination, and reaps after group cleanup.
-- The application has zero runtime library dependencies. Raw ANSI, `termios`,
-  `poll`, monotonic time, and signals are deliberate constraints.
-- Avoid compiler extensions, undefined behavior, locale assumptions, and hidden
-  dependence on a particular terminal font or emulator.
-- Unicode mode requires UTF-8; ASCII and xterm-256 fallbacks remain first-class
-  supported paths rather than approximate afterthoughts.
+- Target C17 plus the documented POSIX terminal interfaces on Linux and macOS.
+- Build cleanly with the repository's strict GCC, Clang, and Apple Clang settings.
+- Keep the executable free of third-party runtime dependencies. Raw ANSI, `termios`, `poll`,
+  monotonic time, and signals are deliberate constraints.
+- Avoid compiler extensions, undefined behavior, hidden locale assumptions, and dependence on one
+  terminal emulator or font.
+- UTF-8/Unicode, ASCII, truecolor, xterm-256, and reduced-motion paths are supported behavior, not
+  optional approximations.
 
-## Interface and accessibility invariants
+## Terminal interaction and accessibility
 
-- Semantic colors are defined in one TUI color layer. Components consume named
-  roles; they do not invent local RGB or xterm values.
-- Persistent hierarchy uses explicit semantic colors rather than terminal `dim`,
-  whose brightness is emulator-defined. Dimming is reserved for bounded
-  transient effects; muted labels, completed rows, and decorative texture must
-  remain predictable without it.
-- The xterm-256 fallback preserves focus with contrast-safe surfaces and green
-  rails instead of forcing coarse saturated cube colors. Exact semantic tokens
-  use deliberate indexes, while animated blends remain attached to the nearest
-  role before falling back to the nearest cube or grayscale entry, so low-light
-  transitions never quantize to black.
-- Completion outranks obsolete priority: completed rows retain their check,
-  strike, and muted text cues but suppress active priority hues.
-- State is never color-only. Focus, priority, schedule, completion, errors, and
-  drag targets also use text, glyph, position, weight, or linework.
-- Layout is measured in terminal cells. UTF-8 sequences stay intact, combining
-  marks do not advance the grid, and a wide CJK glyph is never split or drawn
-  without both cells.
-- Responsive degradation removes decoration before information or controls.
-  The active mode, selected task state, status, and keyboard path stay available
-  at every supported size.
-- Selected-task details use a stable label/body/action hierarchy. Descriptions
-  wrap on terminal-cell boundaries within a bounded detail region; compact
-  layouts remove that region before changing one-line task rows.
-- Interactive detail regions share one rectangle for drawing, hover/press
-  feedback, and release-inside hit testing. Empty content remains an explicit,
-  actionable state rather than a blank area.
-- Keyboard operation is complete without pointer input. Hover does not steal
-  keyboard selection, and pointer actions use press-and-release target safety.
-- Motion communicates a bounded state change. It never loops, delays an atomic
-  result, changes identity, or becomes the only indication that work occurred.
-- Reduced-motion mode skips intermediate frames while preserving final state and
-  feedback. ASCII and 256-color modes preserve the same semantics.
+- Semantic colors are defined centrally. Components consume named roles rather than local RGB or
+  xterm values.
+- State is never color-only. Focus, priority, schedule, completion, errors, controls, and drag
+  targets also use text, glyphs, position, weight, or linework.
+- Completion state outranks obsolete priority styling.
+- Layout is measured in terminal cells. UTF-8 stays intact, combining marks do not advance the
+  grid, and wide glyphs are never split.
+- Responsive layouts remove decoration before information or controls. Mode, selected task state,
+  status, and keyboard access remain available at every supported size.
+- Drawing, hover/press feedback, and release-inside hit testing share the same geometry.
+- Keyboard operation is complete without pointer input. Hover does not steal keyboard selection,
+  and pointer actions require a safe press-and-release target match.
+- Motion communicates a bounded state change. It does not loop, delay an atomic result, change
+  identity, or become the only feedback.
+- Reduced-motion mode skips intermediate frames while preserving final state and messages.
 
 ## Comments and documentation
 
-- Comments explain a non-obvious invariant, ownership boundary, safety reason,
-  or measured tradeoff. They do not translate the next statement into English.
-- Keep rationale next to the code whose maintenance depends on it. Keep product
-  usage in the README and repository policy in its dedicated document.
-- Update documentation and tests in the same change when behavior or a public
-  development contract changes.
-- Do not leave commented-out code, vague TODOs, generated narration, or claims
-  that cannot be checked against code or evidence.
+- Comments explain a non-obvious invariant, ownership boundary, safety reason, or measured tradeoff.
+  They do not narrate the next statement.
+- Keep rationale beside the code that depends on it, user behavior in `README.md`, and repository
+  policy here.
+- Update documentation and tests with any behavior or public development-contract change.
+- Do not keep commented-out code, vague TODOs, generated narration, or claims without code or test
+  evidence.
 
-## Pull-request standard
+## Change standard
 
-A pull request must be small enough to review as one coherent decision. It must
-state the problem, explain why the change fits `lowtask`, identify affected
-invariants, and include focused regression evidence. Behavior changes begin
-with a failing test when a practical test seam exists. The strict build and
-relevant unit, PTY, sanitizer, performance, or manual terminal checks must pass.
+A change should represent one coherent decision. It must state the problem, explain why the work
+fits the product boundary, identify affected invariants, and include focused evidence. Begin a
+behavior change with a failing regression when a practical seam exists.
 
-Review should reject a change that:
+Run the applicable strict build, unit, PTY, installation, sanitizer, performance, and manual terminal
+checks. A passing suite is necessary but does not excuse unnecessary scope or an unreadable design.
 
-- expands beyond the local single-user task workflow;
+Reject a change that:
+
+- expands the product without a current need;
 - adds speculative features, abstractions, compatibility paths, or dependencies;
-- weakens stable identity, atomic persistence, input bounds, terminal restoration,
-  nonblocking output, accessibility, or supported fallbacks;
-- makes performance claims without reproducible measurement;
-- substitutes broad cleanup for a focused change or adds unnecessary commentary;
-- lacks tests or direct evidence for the behavior and risks it introduces.
-
-Passing tests is necessary but not sufficient. The change must also remain easy
-for a future maintainer to understand, remove, and verify.
+- weakens stable identity, input bounds, atomic persistence, terminal restoration, nonblocking
+  output, accessibility, or supported fallbacks;
+- makes a performance claim without reproducible measurement;
+- mixes broad cleanup with an otherwise focused change; or
+- lacks evidence for the behavior and risks it introduces.
 
 ## Non-goals
 
-`lowtask` is not a service, synchronization engine, collaboration system,
-calendar, project planner, plugin host, or UI toolkit. Accounts, networking,
-projects, tags, subtasks, recurrence, reminders, due times, natural-language
-dates, and preference frameworks are outside the current product.
-
-This philosophy does not forbid change. It requires each change to solve a
-current problem without eroding the small program that users can trust.
+`lowtask` is not a service, synchronization engine, collaboration system, calendar, project planner,
+plugin host, or UI toolkit. Accounts, networking, projects, tags, subtasks, recurrence, reminders,
+due times, natural-language dates, and preference frameworks are outside the current product.
